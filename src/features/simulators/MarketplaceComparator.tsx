@@ -38,7 +38,7 @@ export function MarketplaceComparator() {
         <br/><span className="italic text-xs">Nota: O lucro pode variar conforme o programa específico selecionado em cada plataforma.</span>
       </p>
       
-      <div className="flex md:grid md:grid-cols-3 gap-6 overflow-x-auto pb-4 snap-x snap-mandatory">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-4">
         {comparisons.map(({ marketplace, condition }) => {
           // Setup local price state
           const rawLocalPrice = store.comparatorPrices[marketplace.id];
@@ -76,9 +76,9 @@ export function MarketplaceComparator() {
           })) === result.profit;
 
           return (
-            <Card key={marketplace.id} className={cn("min-w-[280px] snap-center shrink-0 flex flex-col", isHighest ? "border-success/50 ring-1 ring-success/50" : "")}>
+            <Card key={marketplace.id} className={cn("flex flex-col", isHighest ? "border-success/50 ring-1 ring-success/50" : "")}>
               <CardHeader className="pb-4">
-                <CardTitle className="flex justify-between items-center">
+                <CardTitle className="flex justify-between items-center flex-wrap gap-2">
                   <span>{marketplace.name}</span>
                   <span className="text-[10px] font-normal text-foreground/50 bg-foreground/5 px-2 py-1 rounded-full">{condition.label}</span>
                 </CardTitle>

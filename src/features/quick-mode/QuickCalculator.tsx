@@ -64,7 +64,7 @@ export function QuickCalculator() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
       <div className="lg:col-span-5 space-y-6">
-        <h2 className="text-2xl font-bold flex items-center justify-between">
+        <h2 className="text-2xl font-bold flex items-center justify-between flex-wrap gap-2">
           <span>Modo Rápido</span>
           <button
             onClick={() => {
@@ -72,7 +72,7 @@ export function QuickCalculator() {
                 store.clearData();
               }
             }}
-            className="text-xs font-medium text-foreground/50 hover:text-foreground transition-colors px-3 py-1.5 border border-border rounded-lg bg-card"
+            className="text-xs font-medium text-foreground/50 hover:text-foreground transition-colors px-3 py-1.5 border border-border rounded-lg bg-card shrink-0"
           >
             Limpar Dados
           </button>
@@ -127,7 +127,7 @@ export function QuickCalculator() {
               <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Custos Avançados</h3>
               <p className="text-xs text-foreground/50 mt-1">Ajuste estes valores somente se quiser substituir as configurações padrão ou informar custos específicos da sua venda.</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input 
                 label={
                   <InfoTooltip 
@@ -222,16 +222,16 @@ export function QuickCalculator() {
           <div className="space-y-6">
             <Card className="bg-card">
               <CardContent className="p-8">
-                <div className="grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                   <div>
                     <p className="text-sm font-medium text-foreground/60 mb-1">Você Vende Por</p>
-                    <p className="text-4xl font-bold text-foreground">
+                    <p className="text-3xl sm:text-4xl font-bold text-foreground break-words">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.salePrice)}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-foreground/60 mb-1">Lucro Líquido Estimado</p>
-                    <p className={cn("text-4xl font-bold", result.profit > 0 ? "text-success" : "text-danger")}>
+                    <p className={cn("text-3xl sm:text-4xl font-bold break-words", result.profit > 0 ? "text-success" : "text-danger")}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.profit)}
                     </p>
                   </div>
@@ -274,11 +274,11 @@ export function QuickCalculator() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <div className="flex justify-between text-sm py-2 border-b border-border/50">
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
                     <span className="text-foreground/70">Produto</span>
                     <span className="font-medium text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.breakdown.productCost)}</span>
                   </div>
-                  <div className="flex justify-between text-sm py-2 border-b border-border/50">
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
                     <div className="flex flex-col">
                       <span className="text-foreground/70">Comissão & Taxas ({mkt.name})</span>
                       <span className="text-[10px] text-foreground/50">
@@ -289,50 +289,50 @@ export function QuickCalculator() {
                   </div>
                   
                   {result.breakdown.taxes > 0 ? (
-                    <div className="flex justify-between text-sm py-2 border-b border-border/50">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
                       <span className="text-foreground/70">Impostos ({config.taxesPercentage}%)</span>
                       <span className="font-medium text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.breakdown.taxes)}</span>
                     </div>
                   ) : (
-                    <div className="flex justify-between text-sm py-2 border-b border-border/50 opacity-50">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50 opacity-50">
                       <span className="text-foreground/70">Impostos</span>
                       <span className="font-medium text-foreground/50">Não informado (R$ 0)</span>
                     </div>
                   )}
 
                   {result.breakdown.shipping > 0 ? (
-                    <div className="flex justify-between text-sm py-2 border-b border-border/50">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
                       <span className="text-foreground/70">Frete / Envio</span>
                       <span className="font-medium text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.breakdown.shipping)}</span>
                     </div>
                   ) : (
-                    <div className="flex justify-between text-sm py-2 border-b border-border/50 opacity-50">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50 opacity-50">
                       <span className="text-foreground/70">Frete / Envio</span>
                       <span className="font-medium text-foreground/50">Não informado (R$ 0)</span>
                     </div>
                   )}
 
                   {result.breakdown.marketing > 0 ? (
-                    <div className="flex justify-between text-sm py-2 border-b border-border/50">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
                       <span className="text-foreground/70">Publicidade</span>
                       <span className="font-medium text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.breakdown.marketing)}</span>
                     </div>
                   ) : (
-                    <div className="flex justify-between text-sm py-2 border-b border-border/50 hidden"></div>
+                    <div className="hidden"></div>
                   )}
 
                   {result.breakdown.other > 0 ? (
-                    <div className="flex justify-between text-sm py-2 border-b border-border/50">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
                       <span className="text-foreground/70">Outros Custos</span>
                       <span className="font-medium text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.breakdown.other)}</span>
                     </div>
                   ) : (
-                    <div className="flex justify-between text-sm py-2 border-b border-border/50 hidden"></div>
+                    <div className="hidden"></div>
                   )}
 
-                  <div className="flex justify-between text-sm py-2 bg-success/10 rounded-lg px-2 -mx-2 mt-4">
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-3 bg-success/10 rounded-lg px-3 -mx-3 mt-4">
                     <span className="text-success font-medium">Lucro Líquido</span>
-                    <span className="font-bold text-success">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.profit)}</span>
+                    <span className="font-bold text-success text-base">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.profit)}</span>
                   </div>
                 </div>
               </CardContent>
