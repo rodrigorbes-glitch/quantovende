@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { marketplaces } from '../../core/marketplaces/rules';
 import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
@@ -9,7 +9,6 @@ import { TrendingUp, AlertTriangle, XCircle } from 'lucide-react';
 import { TargetPriceSimulator } from '../simulators/TargetPriceSimulator';
 
 export function QuickCalculator() {
-  const [isProMode, setIsProMode] = React.useState(false);
   const store = usePricingStore();
   
   const mkt = marketplaces[store.marketplaceId];
@@ -41,6 +40,26 @@ export function QuickCalculator() {
     if (margin > 0 && margin < 15) return { color: 'text-warning', bg: 'bg-warning/10', icon: AlertTriangle, title: 'Atenção (Margem Baixa)', desc: 'Pequenos aumentos de custo podem zerar o lucro.' };
     return { color: 'text-danger', bg: 'bg-danger/10', icon: XCircle, title: 'Risco de Prejuízo', desc: 'Neste cenário, você está perdendo dinheiro ou operando no zero.' };
   };
+
+  const InfoTooltip = ({ label, tooltip, isCustom }: { label: string; tooltip: string; isCustom?: boolean }) => (
+    <div className="flex items-center gap-1.5 group">
+      <span>{label}</span>
+      <div 
+        className="cursor-help flex items-center justify-center w-4 h-4 rounded-full bg-foreground/10 text-[10px] font-bold text-foreground/60 hover:bg-primary/20 hover:text-primary transition-colors relative"
+        tabIndex={0}
+      >
+        i
+        <div className="pointer-events-none opacity-0 group-hover:opacity-100 focus:opacity-100 focus-within:opacity-100 transition-opacity absolute bottom-full left-1/2 -translate-x-1/2 sm:-translate-x-1/2 sm:bottom-full mb-2 w-56 sm:w-64 p-3 bg-card border border-border shadow-2xl rounded-lg text-xs font-normal normal-case text-foreground/90 z-50 text-left leading-relaxed">
+          {tooltip}
+        </div>
+      </div>
+      {isCustom && (
+        <span className="ml-auto text-[10px] font-semibold tracking-wider uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+          Personalizado
+        </span>
+      )}
+    </div>
+  );
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -102,12 +121,21 @@ export function QuickCalculator() {
           />
         </div>
 
-        {isProMode && (
+        {store.isProMode && (
           <div className="pt-4 space-y-4 border-t border-border mt-4 animate-in fade-in slide-in-from-top-2">
-            <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Custos Avançados</h3>
+            <div>
+              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Custos Avançados</h3>
+              <p className="text-xs text-foreground/50 mt-1">Ajuste estes valores somente se quiser substituir as configurações padrão ou informar custos específicos da sua venda.</p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <Input 
-                label="Comissão Base (Sobrescrever %)" 
+                label={
+                  <InfoTooltip 
+                    label="Comissão do marketplace" 
+                    tooltip={`Tecnicamente, este campo substitui a comissão padrão usada pelo QuantoVende. Informe aqui a comissão específica que você realmente paga ao marketplace, somente se souber que ela é diferente da padrão. Ex.: comissão padrão ${rule.tiers[0].percentage}%. Se sua taxa real for 16%, informe 16%.`}
+                    isCustom={store.customCommissionPercentage !== null}
+                  />
+                }
                 type="number" 
                 placeholder={rule.tiers[0].percentage.toString()}
                 suffix="%"
@@ -115,7 +143,13 @@ export function QuickCalculator() {
                 onChange={e => store.setAdvancedField('customCommissionPercentage', e.target.value ? parseFloat(e.target.value) : null)}
               />
               <Input 
-                label="Taxa Fixa (Sobrescrever R$)" 
+                label={
+                  <InfoTooltip 
+                    label="Taxa fixa" 
+                    tooltip={`Este campo permite substituir a taxa fixa padrão usada pelo QuantoVende. Informe aqui o valor específico cobrado na sua venda, somente se ele for diferente do padrão. Ex.: taxa padrão R$ ${rule.tiers[0].fixedFee}. Se sua taxa real for R$ 8, informe 8.`}
+                    isCustom={store.customFixedFee !== null}
+                  />
+                }
                 type="number" 
                 placeholder={rule.tiers[0].fixedFee.toString()}
                 prefix="R$"
@@ -162,9 +196,9 @@ export function QuickCalculator() {
            <Button 
             variant="outline"
             className="w-full gap-2"
-            onClick={() => setIsProMode(!isProMode)}
+            onClick={() => store.setAdvancedField('isProMode', !store.isProMode)}
            >
-             {isProMode ? "Ocultar Configurações Avançadas" : "Configurações Avançadas (PRO)"}
+             {store.isProMode ? "Ocultar Configurações Avançadas" : "Configurações Avançadas (PRO)"}
            </Button>
         </div>
       </div>
