@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Mode */
+    --background: 210 20% 98%;
+    --foreground: 220 39% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 39% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    
+    /* Semantic Colors */
+    --success: 142 71% 45%;
+    --success-light: 149 80% 90%;
+    --success-dark: 142 76% 20%;
+    --danger: 348 83% 54%;
+    --danger-light: 354 80% 90%;
+    --danger-dark: 348 70% 30%;
+    --warning: 38 92% 50%;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* Sophisticated Graphite Dark Mode (Not pure black) */
+      --background: 222 47% 11%;
+      --foreground: 210 40% 98%;
+      --card: 217 33% 15%;
+      --card-foreground: 210 40% 98%;
+      --primary: 217 91% 60%;
+      --primary-foreground: 222 47% 11%;
+      --border: 215 28% 22%;
+      --input: 215 28% 22%;
+      
+      /* Semantic Colors adjusted for dark */
+      --success: 142 71% 45%;
+      --success-light: 142 76% 20%;
+      --success-dark: 149 80% 90%;
+      --danger: 348 83% 54%;
+      --danger-light: 348 70% 30%;
+      --danger-dark: 354 80% 90%;
+      --warning: 38 92% 50%;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+  }
+}
