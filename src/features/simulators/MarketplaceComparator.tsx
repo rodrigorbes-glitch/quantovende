@@ -172,7 +172,7 @@ export function MarketplaceComparator() {
                     <span className="text-[10px] font-normal text-foreground/50 bg-foreground/5 px-2 py-0.5 rounded-full text-center">
                       {condition.label}
                     </span>
-                    <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full text-center">
+                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full text-center">
                       {store.comparatorScenario === 'STANDARD' ? 'Estimativa' : (store.comparatorScenario === 'CUSTOM' ? 'Minha conta' : 'Promoção')}
                     </span>
                   </div>
@@ -202,12 +202,12 @@ export function MarketplaceComparator() {
                     </button>
                     {openConfigId === marketplace.id && (
                       <div className="p-4 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-foreground/[0.02]">
-                        <Input label="Comissão (%)" type="number" placeholder="Padrão" value={rates.commission ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'commission', e.target.value ? parseFloat(e.target.value) : null)} />
-                        <Input label="Taxa Fixa (R$)" type="number" placeholder="Padrão" value={rates.fixedFee ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'fixedFee', e.target.value ? parseFloat(e.target.value) : null)} />
-                        <Input label="Impostos (%)" type="number" placeholder="Padrão" value={rates.taxes ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'taxes', e.target.value ? parseFloat(e.target.value) : null)} />
-                        <Input label="Frete (R$)" type="number" placeholder="Padrão" value={rates.shipping ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'shipping', e.target.value ? parseFloat(e.target.value) : null)} />
-                        <Input label="Ads (R$)" type="number" placeholder="Padrão" value={rates.marketing ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'marketing', e.target.value ? parseFloat(e.target.value) : null)} />
-                        <Input label="Outros (R$)" type="number" placeholder="Padrão" value={rates.other ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'other', e.target.value ? parseFloat(e.target.value) : null)} />
+                        <Input label="Comissão (%)" type="number" placeholder="Não informado" value={rates.commission ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'commission', e.target.value ? parseFloat(e.target.value) : null)} />
+                        <Input label="Taxa Fixa (R$)" type="number" placeholder="Não informado" value={rates.fixedFee ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'fixedFee', e.target.value ? parseFloat(e.target.value) : null)} />
+                        <Input label="Impostos (%)" type="number" placeholder="Não informado" value={rates.taxes ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'taxes', e.target.value ? parseFloat(e.target.value) : null)} />
+                        <Input label="Frete (R$)" type="number" placeholder="Não informado" value={rates.shipping ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'shipping', e.target.value ? parseFloat(e.target.value) : null)} />
+                        <Input label="Ads (R$)" type="number" placeholder="Não informado" value={rates.marketing ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'marketing', e.target.value ? parseFloat(e.target.value) : null)} />
+                        <Input label="Outros (R$)" type="number" placeholder="Não informado" value={rates.other ?? ''} onChange={e => store.setComparatorRate(store.comparatorScenario as any, marketplace.id, 'other', e.target.value ? parseFloat(e.target.value) : null)} />
                       </div>
                     )}
                   </div>
