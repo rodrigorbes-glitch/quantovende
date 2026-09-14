@@ -53,3 +53,7 @@ Este documento centraliza as premissas matemáticas utilizadas no motor de preci
   * Categoria Eletrônicos / Informática: Estimativa de 8% + R$ 2,00.
 * **Limitações:** Devido à gigantesca variação (de 8% a até 20% dependendo do tipo exato de item e se há tarifa mínima), a plataforma utiliza uma base estimativa. 
 * **Status:** Estimativa Configurável (A interface encoraja a sobrescrita dos valores via Modo Avançado).
+
+
+## Rate Intelligence Engine
+Para detalhes da futura orquestra��o automatizada e intelig�ncia de cen�rios de taxas, consulte src/core/rate-intelligence/README.md.
