@@ -15,3 +15,14 @@ Infraestrutura preparada para automatizar, validar e versionar as regras de cust
 - `validator.ts`: Valida a sanidade da altera√ß√£o recebida.
 - `change-detector.ts`: Identifica exatamente qual campo mudou em compara√ß√£o √† regra anterior.
 - `index.ts`: Ponto central de consumo das regras para o restante da aplica√ß√£o.
+
+
+## Roadmap
+
+- NÕVEL 1: Metadata + fontes + versionamento (Atual)
+- NÕVEL 2: Mercado Livre API oficial
+- NÕVEL 3: Backend persistente
+- NÕVEL 4: Vercel Cron / scheduler
+- NÕVEL 5: Amazon SP-API autorizada
+- NÕVEL 6: Shopee API/fonte oficial autorizada
+- NÕVEL 7: Alertas administrativos

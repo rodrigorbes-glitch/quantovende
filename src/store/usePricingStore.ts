@@ -42,13 +42,18 @@ interface AppState {
   comparatorPromoStart: string;
   comparatorPromoEnd: string;
 
+  // Onboarding
+  hasSeenOnboarding: boolean;
+  setHasSeenOnboarding: (v: boolean) => void;
+
   // Ações
   setProductCost: (v: number) => void;
   setSalePrice: (v: number) => void;
   setMarketplace: (id: string, conditionId: string) => void;
   setComparatorPrice: (marketplaceId: string, price: number | null) => void;
   setComparatorRate: (scenario: 'CUSTOM' | 'PROMOTION', marketplaceId: string, field: keyof ComparatorRate, value: number | null) => void;
-  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setAdvancedField' | 'clearData' | 'setComparatorPrice' | 'setComparatorRate'>, value: any) => void;
+  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding'>, value: any) => void;
+  resetAnalysis: () => void;
   clearData: () => void;
 }
 
@@ -78,12 +83,14 @@ export const usePricingStore = create<AppState>()(
   persist(
     (set) => ({
       ...initialState,
+      hasSeenOnboarding: false,
+      setHasSeenOnboarding: (v) => set({ hasSeenOnboarding: v }),
       setProductCost: (v) => set({ productCost: v }),
       setSalePrice: (v) => set({ salePrice: v }),
       setMarketplace: (id, conditionId) => set({ 
         marketplaceId: id, 
         marketplaceConditionId: conditionId,
-        customCommissionPercentage: null, // reseta custom ao mudar marketplace
+        customCommissionPercentage: null,
         customFixedFee: null
       }),
       setComparatorPrice: (id, price) => set((state) => ({ 
@@ -102,7 +109,14 @@ export const usePricingStore = create<AppState>()(
         };
       }),
       setAdvancedField: (field, value) => set({ [field]: value }),
-      clearData: () => set({ ...initialState }),
+      resetAnalysis: () => set((state) => ({
+        ...initialState,
+        hasSeenOnboarding: state.hasSeenOnboarding // keeps onboarding status
+      })),
+      clearData: () => set((state) => ({
+        ...initialState,
+        hasSeenOnboarding: state.hasSeenOnboarding // clearData also preserves onboarding
+      })),
     }),
     {
       name: 'quantovende-storage', 

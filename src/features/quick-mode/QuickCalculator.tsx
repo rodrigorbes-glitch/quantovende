@@ -68,13 +68,17 @@ export function QuickCalculator() {
           <span>Modo Rápido</span>
           <button
             onClick={() => {
-              if (window.confirm('Deseja limpar todos os dados informados?')) {
-                store.clearData();
+              if (store.productCost > 0 || store.salePrice > 0) {
+                if (window.confirm('Começar uma nova simulação? Os dados desta análise serão substituídos.')) {
+                  store.resetAnalysis();
+                }
+              } else {
+                store.resetAnalysis();
               }
             }}
-            className="text-xs font-medium text-foreground/50 hover:text-foreground transition-colors px-3 py-1.5 border border-border rounded-lg bg-card shrink-0"
+            className="text-xs font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 border border-primary/20 rounded-lg bg-primary/5 shrink-0"
           >
-            Limpar Dados
+            Nova simulação
           </button>
         </h2>
         <p className="text-foreground/70 text-sm">Descubra rapidamente quanto sobra no seu bolso.</p>

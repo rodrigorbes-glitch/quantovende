@@ -29,7 +29,7 @@ export function getMarketplaceRateProfile(marketplaceId: string): RateProfile | 
     effectiveFrom: '2023-01-01', // Data figurativa da vigência
     sourceUrl: source?.sourceUrl || '',
     verifiedAt: new Date().toISOString().split('T')[0],
-    status: 'ACTIVE',
+    status: source?.automationStatus || 'ACTIVE',
     rates: mkt.commissions
   };
 }
