@@ -31,13 +31,3 @@ export interface RuleVersion {
   ratesPayload: any;
 }
 
-export interface ChangeSet {
-  marketplaceId: string;
-  detectedAt: string;
-  changes: Array<{
-    field: string;
-    oldValue: any;
-    newValue: any;
-  }>;
-  status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
-}

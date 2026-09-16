@@ -27,6 +27,12 @@ export function MainLayout({ children }: MainLayoutProps) {
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             <button
+              onClick={() => { window.location.href = '/integracoes'; }}
+              className="text-xs font-medium text-foreground/60 hover:text-foreground transition-colors px-2 py-1.5"
+            >
+              Integrações
+            </button>
+            <button
               onClick={() => setForceOnboarding(true)}
               className="text-xs font-medium text-foreground/60 hover:text-foreground transition-colors px-2 py-1.5"
             >

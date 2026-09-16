@@ -169,14 +169,19 @@ export function MarketplaceComparator() {
                   <div className="flex items-center gap-2">
                     <span>{marketplace.name}</span>
                     {store.comparatorScenario === 'STANDARD' ? (
-                      <RateStatusBadge info={{
-                        marketplace: marketplace.name,
-                        lastVerifiedAt: getMarketplaceRateProfile(marketplace.id)?.verifiedAt,
-                        effectiveFrom: getMarketplaceRateProfile(marketplace.id)?.effectiveFrom,
-                        sourceType: getMarketplaceRateProfile(marketplace.id)?.status === 'MANUAL_REVIEW' ? 'MANUAL_REVIEW' : 'OFFICIAL',
-                        sourceUrl: getMarketplaceRateProfile(marketplace.id)?.sourceUrl,
-                        status: getMarketplaceRateProfile(marketplace.id)?.status || 'ACTIVE'
-                      }} />
+                      (() => {
+                        const profile = store.officialRates[marketplace.id] || getMarketplaceRateProfile(marketplace.id);
+                        return (
+                          <RateStatusBadge info={{
+                            marketplace: marketplace.name,
+                            lastVerifiedAt: profile?.verifiedAt,
+                            effectiveFrom: profile?.effectiveFrom,
+                            sourceType: profile?.status === 'MANUAL_REVIEW' ? 'MANUAL_REVIEW' : 'OFFICIAL',
+                            sourceUrl: profile?.sourceUrl,
+                            status: profile?.status || 'ACTIVE'
+                          }} />
+                        );
+                      })()
                     ) : (
                       <div className="group relative cursor-help flex items-center justify-center w-4 h-4 rounded-full bg-foreground/10 text-[10px] font-bold text-foreground/60 hover:bg-primary/20 hover:text-primary transition-colors">
                         i

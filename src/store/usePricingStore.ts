@@ -55,6 +55,9 @@ interface AppState {
   setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding'>, value: any) => void;
   resetAnalysis: () => void;
   clearData: () => void;
+  // Supabase / Rate Intelligence
+  officialRates: Record<string, any>;
+  syncOfficialRates: () => Promise<void>;
 }
 
 const initialState = {
@@ -77,6 +80,7 @@ const initialState = {
   comparatorPromoName: 'Promoção / Isenção',
   comparatorPromoStart: '',
   comparatorPromoEnd: '',
+  officialRates: {},
 };
 
 export const usePricingStore = create<AppState>()(
@@ -109,6 +113,17 @@ export const usePricingStore = create<AppState>()(
         };
       }),
       setAdvancedField: (field, value) => set({ [field]: value }),
+      syncOfficialRates: async () => {
+        // Import inline to avoid circular dependencies if any
+        const { fetchMarketplaceRateProfileAsync } = await import('../core/rate-intelligence');
+        const mkts = ['mercadolivre', 'amazon', 'shopee'];
+        const newRates: Record<string, any> = {};
+        for (const mkt of mkts) {
+          const profile = await fetchMarketplaceRateProfileAsync(mkt);
+          if (profile) newRates[mkt] = profile;
+        }
+        set({ officialRates: newRates });
+      },
       resetAnalysis: () => set((state) => ({
         ...initialState,
         hasSeenOnboarding: state.hasSeenOnboarding // keeps onboarding status
