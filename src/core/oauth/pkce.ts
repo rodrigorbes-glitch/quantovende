@@ -55,6 +55,7 @@ export async function buildAuthorizationUrl(
   url.searchParams.set('state', state);
   url.searchParams.set('code_challenge', challenge);
   url.searchParams.set('code_challenge_method', 'S256');
+  url.searchParams.set('scope', 'offline_access read write');
 
   return {
     url: url.toString(),
