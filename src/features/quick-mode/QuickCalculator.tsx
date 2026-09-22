@@ -7,6 +7,7 @@ import { Button } from '../../ui/components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
 import { TrendingUp, AlertTriangle, XCircle } from 'lucide-react';
 import { TargetPriceSimulator } from '../simulators/TargetPriceSimulator';
+import { RateStatusBadge } from '../simulators/RateStatusBadge';
 
 export function QuickCalculator() {
   const store = usePricingStore();
@@ -284,7 +285,19 @@ export function QuickCalculator() {
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
                     <div className="flex flex-col">
-                      <span className="text-foreground/70">Comissão & Taxas ({mkt.name})</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-foreground/70">Comissão & Taxas ({mkt.name})</span>
+                        {store.officialRates[mkt.id] && (
+                          <RateStatusBadge info={{
+                            marketplace: mkt.name,
+                            lastVerifiedAt: store.officialRates[mkt.id].verifiedAt || store.officialRates[mkt.id].effectiveFrom || new Date().toISOString(),
+                            effectiveFrom: store.officialRates[mkt.id].effectiveFrom,
+                            sourceType: store.officialRates[mkt.id].sourceType || 'OFFICIAL_API',
+                            sourceUrl: mkt.sourceUrl,
+                            status: store.officialRates[mkt.id].status || 'ACTIVE'
+                          }} />
+                        )}
+                      </div>
                       <span className="text-[10px] text-foreground/50">
                         R$ {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(result.breakdown.marketplaceCommissionExtracted)} comissão + R$ {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(result.breakdown.marketplaceFixedExtracted)} fixo
                       </span>

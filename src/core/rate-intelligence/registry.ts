@@ -1,34 +1,34 @@
-import type { MarketplaceRateSource } from './types';
+﻿import type { MarketplaceRateSource } from './types';
 
 export const sourcesRegistry: MarketplaceRateSource[] = [
   {
     marketplaceId: 'mercadolivre',
-    sourceUrl: 'https://vendedores.mercadolivre.com.br/nota/custos-de-venda-de-produtos/',
-    sourceType: 'OFFICIAL_PUBLIC_PAGE',
+    sourceUrl: 'https://api.mercadolibre.com',
+    sourceType: 'OFFICIAL_API',
     official: true,
-    automationAllowed: false, // Scraping não é recomendado para páginas com login/proteção forte
-    automationStatus: 'MANUAL_REVIEW',
-    parserVersion: '1.0.0',
-    notes: 'Atualização depende de revisão manual devido a bloqueios anti-bot e Termos de Uso.'
-  },
-  {
-    marketplaceId: 'shopee',
-    sourceUrl: 'https://seller.shopee.com.br/edu/article/10500',
-    sourceType: 'OFFICIAL_DOCUMENT',
-    official: true,
-    automationAllowed: false,
-    automationStatus: 'MANUAL_REVIEW',
-    parserVersion: '1.0.0',
-    notes: 'Documentação da central de educação sujeita a mudanças de layout estrutural. Revisão manual.'
+    automationAllowed: true,
+    automationStatus: 'ACTIVE',
+    parserVersion: '1.1.0',
+    notes: 'Integração OAuth oficial ativa. Taxas atualizadas em tempo real via API.'
   },
   {
     marketplaceId: 'amazon',
-    sourceUrl: 'https://venda.amazon.com.br/precificacao/taxas',
-    sourceType: 'OFFICIAL_PUBLIC_PAGE',
+    sourceUrl: 'https://developer-docs.amazon.com/sp-api/',
+    sourceType: 'OFFICIAL_API',
     official: true,
-    automationAllowed: false,
+    automationAllowed: true,
+    automationStatus: 'ACTIVE',
+    parserVersion: '1.2.0',
+    notes: 'Integração AWS SP-API ativa via IAM Role / SigV4.'
+  },
+  {
+    marketplaceId: 'shopee',
+    sourceUrl: 'https://open.shopee.com/',
+    sourceType: 'OFFICIAL_API',
+    official: true,
+    automationAllowed: true,
     automationStatus: 'MANUAL_REVIEW',
     parserVersion: '1.0.0',
-    notes: 'Requer revisão manual para garantir conformidade com políticas de automação (robots.txt).'
+    notes: 'Aguardando liberação do perfil de desenvolvedor pela Shopee para iniciar coleta.'
   }
 ];

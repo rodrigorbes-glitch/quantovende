@@ -72,7 +72,7 @@ async function safeRefreshWithLock(supabase: any, marketplace: string, encryptio
     const lockUntil = new Date(Date.now() + 10 * 1000).toISOString();
     
     // OCC: Update lock apenas se não houver um lock válido no momento e a versão bater
-    const { count, error: lockErr } = await supabase
+    const { data, error: lockErr } = await supabase
       .from('oauth_credentials')
       .update({
         refresh_lock_until: lockUntil,
@@ -81,11 +81,11 @@ async function safeRefreshWithLock(supabase: any, marketplace: string, encryptio
       .eq('id', creds.id)
       .eq('version', creds.version)
       .or(`refresh_lock_until.is.null,refresh_lock_until.lt.${new Date().toISOString()}`)
-      .select('*', { count: 'exact' });
+      .select();
 
     if (lockErr) throw lockErr;
 
-    if (count === 1) {
+    if (data && data.length === 1) {
       // 🟢 LOCK ADQUIRIDO: Somos o worker Vencedor. Vamos chamar a API externa.
       try {
         const plainRefreshToken = await decryptToken(creds.refresh_token, encryptionKey);
@@ -97,7 +97,7 @@ async function safeRefreshWithLock(supabase: any, marketplace: string, encryptio
         const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
 
         // Salvar e liberar Lock atomicamente
-        const { count: saveCount, error: saveErr } = await supabase
+        const { data: saveData, error: saveErr } = await supabase
           .from('oauth_credentials')
           .update({
             access_token: encryptedAccess,
@@ -110,11 +110,11 @@ async function safeRefreshWithLock(supabase: any, marketplace: string, encryptio
           })
           .eq('id', creds.id)
           .eq('refresh_lock_token', workerUuid) // Garante que ainda somos donos do lock
-          .select('*', { count: 'exact' });
+          .select();
 
         if (saveErr) throw saveErr;
 
-        if (saveCount === 0) {
+        if (!saveData || saveData.length === 0) {
           // Extremamente improvável (Lock expirou no meio da request, outro worker assumiu)
           throw new Error("Lock perdido durante o request externo.");
         }
@@ -175,7 +175,8 @@ async function executeExternalRefresh(plainRefreshToken: string) {
   }
 
   if (!response.ok) {
-    throw new Error(`Falha ao renovar token OAuth (Status ${response.status})`);
+    const errorText = await response.text();
+    throw new Error(`Falha ao renovar token OAuth (Status ${response.status}): ${errorText}`);
   }
 
   const tokenData = await response.json();

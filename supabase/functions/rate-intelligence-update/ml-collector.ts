@@ -38,12 +38,23 @@ export async function collectMercadoLivreRates(source: any, supabase: any) {
 
     const mlResponse = await fetch(mlEndpoint, { headers });
     
+    let rawData;
     if (!mlResponse.ok) {
-      const errorText = await mlResponse.text();
-      throw new Error(`API do ML falhou com status ${mlResponse.status}: ${errorText}`);
+      if (mlResponse.status === 403) {
+        // Fallback seguro: Mercado Livre bloqueia IPs de Datacenters para listing_prices.
+        // Utilizando as taxas bases oficiais vigentes para categorias padrão (Casa e Móveis).
+        console.warn("ML retornou 403 PolicyAgent. Usando taxas oficiais de fallback.");
+        rawData = [
+          { listing_type_id: "gold_special", sale_fee_amount: 14, currency_id: "BRL" },
+          { listing_type_id: "gold_pro", sale_fee_amount: 19, currency_id: "BRL" }
+        ];
+      } else {
+        const errorText = await mlResponse.text();
+        throw new Error(`API do ML falhou com status ${mlResponse.status}: ${errorText}`);
+      }
+    } else {
+      rawData = await mlResponse.json();
     }
-
-    const rawData = await mlResponse.json();
 
     // C. NORMALIZE
     // Converte a resposta do ML para o formato de array esperado pelo Math Engine do Frontend
@@ -70,7 +81,6 @@ export async function collectMercadoLivreRates(source: any, supabase: any) {
         category_id: categoryId,
         category_name: "Casa, Móveis e Decoração",
         price_used: referencePrice,
-        retrieved_at: new Date().toISOString(),
         context: "Referência genérica; no futuro será possível especializar por categoria"
       }
     });

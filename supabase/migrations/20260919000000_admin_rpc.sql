@@ -1,0 +1,1 @@
+CREATE OR REPLACE FUNCTION get_admin_oauth_status() RETURNS TABLE ( marketplace VARCHAR, seller_user_id VARCHAR, updated_at TIMESTAMPTZ ) LANGUAGE plpgsql SECURITY DEFINER AS $$ BEGIN RETURN QUERY SELECT c.marketplace, c.seller_user_id, c.updated_at FROM oauth_credentials c ORDER BY c.updated_at DESC; END; $$;

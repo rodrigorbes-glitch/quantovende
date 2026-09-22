@@ -163,7 +163,7 @@ export function MarketplaceComparator() {
           const rates = (store.comparatorScenario === 'CUSTOM' ? store.comparatorCustomRates[marketplace.id] : store.comparatorPromoRates[marketplace.id]) || {};
 
           return (
-            <Card key={marketplace.id} className={cn("flex flex-col relative", isHighestProfit ? "border-success/50 ring-1 ring-success/50" : "")}>
+            <Card key={marketplace.id} className={cn("flex flex-col relative overflow-visible", isHighestProfit ? "border-success/50 ring-1 ring-success/50" : "")}>
               <CardHeader className="pb-4">
                 <CardTitle className="flex justify-between items-start flex-wrap gap-2">
                   <div className="flex items-center gap-2">

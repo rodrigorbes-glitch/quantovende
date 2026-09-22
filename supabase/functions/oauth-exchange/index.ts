@@ -8,21 +8,25 @@ const clientId = Deno.env.get("MERCADO_LIVRE_CLIENT_ID") || "";
 const clientSecret = Deno.env.get("MERCADO_LIVRE_CLIENT_SECRET") || "";
 const encryptionKey = Deno.env.get("ENCRYPTION_KEY") || "";
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 serve(async (req) => {
-  // CORS Headers (se necessário pelo frontend)
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' } });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const { code, code_verifier, redirect_uri } = await req.json();
 
     if (!code || !code_verifier || !redirect_uri) {
-      return new Response(JSON.stringify({ error: "Parâmetros obrigatórios ausentes" }), { status: 400 });
+      return new Response(JSON.stringify({ success: false, error: "Parâmetros obrigatórios ausentes" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (!clientId || !clientSecret || !encryptionKey) {
-      return new Response(JSON.stringify({ error: "Configuração do servidor ausente" }), { status: 500 });
+      return new Response(JSON.stringify({ success: false, error: "Configuração do servidor ausente" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // 1. Troca do Authorization Code por Tokens
@@ -43,8 +47,10 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      // Retorna erro sanitizado
-      return new Response(JSON.stringify({ error: "Falha na autorização com o Mercado Livre" }), { status: response.status });
+      const errorText = await response.text();
+      console.error("ML Auth Error:", errorText);
+      // Retornar 200 com payload de erro para o supabase-js não engolir a mensagem
+      return new Response(JSON.stringify({ success: false, error: `ML recusou: ${errorText}` }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const tokenData = await response.json();
@@ -55,7 +61,7 @@ serve(async (req) => {
     });
 
     if (!meResponse.ok) {
-      return new Response(JSON.stringify({ error: "Falha ao obter identificação do usuário Mercado Livre" }), { status: 500 });
+      return new Response(JSON.stringify({ error: "Falha ao obter identificação do usuário" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const meData = await meResponse.json();
@@ -66,10 +72,9 @@ serve(async (req) => {
     const encryptedRefresh = await encryptToken(tokenData.refresh_token, encryptionKey);
     const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
 
-    // 4. Salvar Tokens de forma segura no Supabase (Upsert pois é novo login)
+    // 4. Salvar Tokens de forma segura no Supabase
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Procura registro existente para obter versão atual
     const { data: existing } = await supabase
       .from('oauth_credentials')
       .select('id, version')
@@ -78,7 +83,6 @@ serve(async (req) => {
       .single();
 
     if (existing) {
-      // OCC Update
       const { count, error: updateErr } = await supabase
         .from('oauth_credentials')
         .update({
@@ -96,7 +100,6 @@ serve(async (req) => {
         throw new Error("Concorrência detectada ao atualizar credencial.");
       }
     } else {
-      // Insert
       const { error: insertErr } = await supabase
         .from('oauth_credentials')
         .insert({
@@ -111,12 +114,11 @@ serve(async (req) => {
       if (insertErr) throw insertErr;
     }
 
-    // 5. Retorna sucesso sanitizado, NUNCA enviando tokens para o Frontend
     return new Response(JSON.stringify({ success: true }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    console.error("Erro interno no oauth-exchange");
-    return new Response(JSON.stringify({ error: "Ocorreu um erro interno." }), { status: 500 });
+    console.error("Erro interno no oauth-exchange:", err);
+    return new Response(JSON.stringify({ success: false, error: err.message || "Ocorreu um erro interno." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

@@ -6,6 +6,8 @@ import { LandingPage } from './features/landing/LandingPage';
 import MercadoLivreCallback from './pages/oauth/Callback';
 import { MercadoLivreConnect } from './features/oauth/MercadoLivreConnect';
 
+import { AdminDashboard } from './pages/admin/AdminDashboard';
+
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
 
@@ -23,6 +25,10 @@ export default function App() {
 
   if (currentPath === '/oauth/mercadolivre/callback') {
     return <MercadoLivreCallback />;
+  }
+
+  if (currentPath === '/admin') {
+    return <AdminDashboard />;
   }
 
   if (currentPath === '/integracoes') {

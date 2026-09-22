@@ -62,6 +62,14 @@ serve(async (req) => {
       results.push(mlResult);
     }
 
+    // 4. Executa pipeline para a Amazon
+    const amazonSource = sources?.find(s => s.marketplace === 'amazon');
+    if (amazonSource) {
+      const { collectAmazonRates } = await import('./amazon-collector.ts');
+      const amazonResult = await collectAmazonRates(amazonSource, supabase);
+      results.push(amazonResult);
+    }
+
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { "Content-Type": "application/json" },
     });
