@@ -31,7 +31,7 @@ export function LandingPage() {
         <section className="py-20 md:py-28 px-6 md:px-12 flex flex-col items-center text-center max-w-5xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold mb-8 border border-primary/20 animate-in fade-in slide-in-from-top-2">
             <Sparkles className="w-4 h-4" />
-            <span>Motor com Conexão Oficial Amazon SP-API & Mercado Livre</span>
+            <span>Motor com Conexão Oficial Amazon & Mercado Livre</span>
           </div>
 
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6 text-foreground">
@@ -95,7 +95,7 @@ export function LandingPage() {
                   Veja exatamente o que é comissão de canal, taxa fixa de embalagem, frete obrigatório e impostos antes de publicar qualquer anúncio.
                 </p>
                 <div className="pt-2 flex flex-wrap gap-2 text-xs">
-                  <span className="px-2.5 py-1 rounded-lg bg-foreground/5 font-medium">Simulador Reverso</span>
+                  <span className="px-2.5 py-1 rounded-lg bg-foreground/5 font-medium">Calculadora de Preço Ideal</span>
                   <span className="px-2.5 py-1 rounded-lg bg-foreground/5 font-medium">Preço Mínimo Anti-Prejuízo</span>
                   <span className="px-2.5 py-1 rounded-lg bg-foreground/5 font-medium">Envio no WhatsApp</span>
                 </div>
@@ -182,7 +182,7 @@ export function LandingPage() {
                 <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                   <TrendingUp className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-bold">Simulador Reverso de Margem</h3>
+                <h3 className="text-xl font-bold">Calculadora de Preço Ideal</h3>
                 <p className="text-foreground/70 text-sm leading-relaxed">
                   Defina a sua meta de lucro (ex: 20% no bolso) e o QuantoVende calcula o preço exato de venda necessário para cobrir custos e taxas.
                 </p>

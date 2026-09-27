@@ -57,7 +57,7 @@ export function TargetPriceSimulator() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <CardTitle className="text-primary flex items-center gap-2 text-base sm:text-lg">
             <Target className="w-5 h-5 text-primary" />
-            <span>Simulador Reverso: Qual preço devo cobrar?</span>
+            <span>Calculadora de Preço Ideal: Qual preço devo cobrar?</span>
           </CardTitle>
           <div className="flex items-center gap-1.5 text-xs text-foreground/60 bg-background/80 px-2.5 py-1 rounded-full border border-border/60 self-start sm:self-auto">
             <span>{category.icon}</span>
