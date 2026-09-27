@@ -8,6 +8,7 @@ import { Button } from '../../ui/components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
 import { TrendingUp, AlertTriangle, XCircle, Calculator, Copy, Check, MessageSquare, BookmarkPlus, Package, Printer } from 'lucide-react';
 import { TargetPriceSimulator } from '../simulators/TargetPriceSimulator';
+import { DiscountSimulator } from '../simulators/DiscountSimulator';
 import { RateStatusBadge } from '../simulators/RateStatusBadge';
 import { SavedProductsModal } from '../saved-products/SavedProductsModal';
 import { ProductReportModal } from '../export/ProductReportModal';
@@ -478,6 +479,8 @@ export function QuickCalculator() {
                 </div>
               </CardContent>
             </Card>
+
+            <DiscountSimulator />
 
             <Card>
               <CardHeader>
