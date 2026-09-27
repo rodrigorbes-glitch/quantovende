@@ -1,4 +1,4 @@
-﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.33.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.33.1";
 import { AwsClient } from "https://esm.sh/aws4fetch@1.0.17";
 
 export async function collectAmazonRates(source: any, supabase: any) {
@@ -38,7 +38,7 @@ export async function collectAmazonRates(source: any, supabase: any) {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      throw new Error(Falha ao obter Access Token LWA: $tokenResponse.status - $errorText`);
+      throw new Error(`Falha ao obter Access Token LWA: ${tokenResponse.status} - ${errorText}`);
     }
 
     const tokenData = await tokenResponse.json();

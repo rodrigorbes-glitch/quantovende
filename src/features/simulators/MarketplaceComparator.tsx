@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { usePricingStore, type ComparatorScenario, type ComparatorRate } from '../../store/usePricingStore';
 import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
-import { marketplaces } from '../../core/marketplaces/rules';
+import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
 import { getMarketplaceRateProfile } from '../../core/rate-intelligence';
 import { RateStatusBadge } from './RateStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
@@ -36,7 +36,7 @@ export function MarketplaceComparator() {
       const rawLocalPrice = store.comparatorPrices[marketplace.id];
       const activePrice = (rawLocalPrice !== undefined ? rawLocalPrice : store.salePrice) || 0;
       
-      const rule = marketplace.commissions.find(c => c.conditionId === condition.id)!;
+      const rule = getCommissionRule(marketplace.id, condition.id, store.officialRates) || marketplace.commissions.find(c => c.conditionId === condition.id)!;
       
       let customConfig: ComparatorRate | undefined;
       if (store.comparatorScenario === 'CUSTOM') customConfig = store.comparatorCustomRates[marketplace.id];

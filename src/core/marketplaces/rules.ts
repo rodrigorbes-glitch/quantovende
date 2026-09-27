@@ -99,3 +99,22 @@ export const marketplaces: Record<string, MarketplaceConfig> = {
     ]
   }
 };
+
+export function getCommissionRule(
+  marketplaceId: string,
+  conditionId: string,
+  officialRates?: Record<string, any>
+) {
+  const mkt = marketplaces[marketplaceId];
+  if (!mkt) return null;
+
+  const dynamicRates = officialRates?.[marketplaceId]?.rates;
+  if (Array.isArray(dynamicRates)) {
+    const dynamicRule = dynamicRates.find((r: any) => r.conditionId === conditionId);
+    if (dynamicRule && Array.isArray(dynamicRule.tiers) && dynamicRule.tiers.length > 0) {
+      return dynamicRule;
+    }
+  }
+
+  return mkt.commissions.find(c => c.conditionId === conditionId) || mkt.commissions[0];
+}

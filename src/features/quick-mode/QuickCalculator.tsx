@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { usePricingStore } from '../../store/usePricingStore';
-import { marketplaces } from '../../core/marketplaces/rules';
+import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
 import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
 import { Input, cn } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
@@ -13,7 +13,7 @@ export function QuickCalculator() {
   const store = usePricingStore();
   
   const mkt = marketplaces[store.marketplaceId];
-  const rule = mkt.commissions.find(c => c.conditionId === store.marketplaceConditionId) || mkt.commissions[0];
+  const rule = getCommissionRule(store.marketplaceId, store.marketplaceConditionId, store.officialRates) || mkt.commissions[0];
   
   const config: CostsConfig = useMemo(() => ({
     productCost: store.productCost || 0,

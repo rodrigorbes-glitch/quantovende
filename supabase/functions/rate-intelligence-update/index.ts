@@ -12,36 +12,37 @@ async function generateSha256(str: string): Promise<string> {
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-admin-trigger',
+};
+
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     const authHeader = req.headers.get("Authorization") || "";
     const receivedToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const isAdminTrigger = req.headers.get("x-admin-trigger") === "true";
+    const apiKey = req.headers.get("apikey") || "";
     
     const rawCronSecret = Deno.env.get("CRON_SECRET") || "";
     const cleanCronSecret = rawCronSecret.replace(/^"|"$/g, '').trim();
 
-    const runtimeSecretSha256 = cleanCronSecret ? await generateSha256(cleanCronSecret) : null;
-    const receivedTokenSha256 = receivedToken ? await generateSha256(receivedToken) : null;
+    const isCronAuthorized = cleanCronSecret.length > 0 && cleanCronSecret === receivedToken;
+    const isServiceRoleAuthorized = supabaseServiceKey.length > 0 && receivedToken === supabaseServiceKey;
+    const isAdminAuthorized = isAdminTrigger && apiKey.length > 0;
 
-    const tokenMatches = (cleanCronSecret === receivedToken && cleanCronSecret.length > 0);
-
-    console.log(JSON.stringify({
-      authHeaderPresent: authHeader.length > 0,
-      bearerPrefixValid: /^Bearer\s+/i.test(authHeader),
-      cronSecretConfigured: cleanCronSecret.length > 0,
-      cronSecretLength: cleanCronSecret.length,
-      receivedTokenLength: receivedToken.length,
-      lengthsMatch: (cleanCronSecret.length === receivedToken.length),
-      tokenMatches: tokenMatches,
-      runtimeSecretSha256,
-      receivedTokenSha256
-    }));
-
-    if (!tokenMatches) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    if (!isCronAuthorized && !isServiceRoleAuthorized && !isAdminAuthorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { 
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
     }
     
-    console.log("Autenticação passou com sucesso.");
+    console.log("Autenticação passou com sucesso. Tipo:", isCronAuthorized ? "CRON" : (isServiceRoleAuthorized ? "SERVICE_ROLE" : "ADMIN_TRIGGER"));
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const results = [];
@@ -71,9 +72,12 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ success: true, results }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message }), { 
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
   }
 });
