@@ -4,7 +4,8 @@ import { marketplaces } from '../../core/marketplaces/rules';
 import { getCategoryById } from '../../core/categories';
 import { calculateBreakEvenPrice, type CostsConfig } from '../../core/math/pricing';
 import { Button } from '../../ui/components/Button';
-import { X, Printer, Calculator, ShieldCheck, FileText } from 'lucide-react';
+import { Logo } from '../../ui/components/Logo';
+import { X, Printer, ShieldCheck, FileText } from 'lucide-react';
 
 interface ProductReportModalProps {
   isOpen: boolean;
@@ -126,13 +127,8 @@ export function ProductReportModal({ isOpen, onClose, result, rule }: ProductRep
           {/* Document Header */}
           <div className="flex justify-between items-start pb-5 border-b border-slate-200 gap-4">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="bg-slate-900 text-white p-1.5 rounded-lg">
-                  <Calculator className="w-5 h-5" />
-                </div>
-                <span className="font-extrabold text-xl tracking-tight text-slate-900">
-                  Quanto<span className="text-emerald-600">Vende</span>
-                </span>
+              <div className="mb-1">
+                <Logo isPrint={true} size="md" />
               </div>
               <p className="text-xs text-slate-500 font-medium">Relatório Oficial de Precificação & Rentabilidade</p>
             </div>

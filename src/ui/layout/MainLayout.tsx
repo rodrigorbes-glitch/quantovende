@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Calculator, Package } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { OnboardingModal } from '../../features/onboarding/OnboardingModal';
 import { SavedProductsModal } from '../../features/saved-products/SavedProductsModal';
+import { Logo } from '../components/Logo';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -21,11 +22,8 @@ export function MainLayout({ children }: MainLayoutProps) {
       
       <header className="border-b border-border/40 bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => { window.location.href = '/'; }}>
-            <div className="bg-primary/10 p-2 rounded-lg">
-              <Calculator className="w-5 h-5 text-primary" />
-            </div>
-            <span className="font-bold text-xl tracking-tight hidden sm:block">Quanto<span className="text-primary">Vende</span></span>
+          <div className="cursor-pointer shrink-0" onClick={() => { window.location.href = '/'; }}>
+            <Logo size="md" />
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             <button

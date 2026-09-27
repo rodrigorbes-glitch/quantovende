@@ -1,4 +1,5 @@
-import { ArrowRight, Calculator, PieChart, TrendingUp, ShieldCheck, ArrowRightLeft, Sparkles, MessageSquare, Package, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, PieChart, TrendingUp, ShieldCheck, ArrowRightLeft, Sparkles, MessageSquare, Package, CheckCircle2 } from 'lucide-react';
+import { Logo } from '../../ui/components/Logo';
 
 export function LandingPage() {
   const navigateToCalculator = () => {
@@ -10,11 +11,8 @@ export function LandingPage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
       {/* HEADER */}
       <header className="py-5 px-6 md:px-12 flex justify-between items-center border-b border-border/40 bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <div className="bg-primary/10 p-2 rounded-xl text-primary">
-            <Calculator className="w-6 h-6" />
-          </div>
-          <span className="text-xl font-bold tracking-tight">Quanto<span className="text-primary">Vende</span></span>
+        <div className="cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <Logo size="md" />
         </div>
         <div className="flex items-center gap-3">
           <button 
@@ -244,10 +242,7 @@ export function LandingPage() {
       {/* FOOTER */}
       <footer className="py-10 px-6 md:px-12 text-center text-foreground/50 text-sm border-t border-border/40 bg-card">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-primary" />
-            <span className="font-bold text-base text-foreground">QuantoVende</span>
-          </div>
+          <Logo size="sm" />
           <p className="text-xs">Precifique com precisão. Venda com clareza nos maiores marketplaces do Brasil.</p>
           <p className="text-xs">© {new Date().getFullYear()} QuantoVende. Todos os direitos reservados.</p>
         </div>

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { getCategoryById } from '../../core/categories';
 import { Button } from '../../ui/components/Button';
-import { X, Trash2, ArrowUpRight, Search, Package } from 'lucide-react';
+import { Logo } from '../../ui/components/Logo';
+import { X, Trash2, ArrowUpRight, Search, Package, Printer } from 'lucide-react';
 
 interface SavedProductsModalProps {
   isOpen: boolean;
@@ -21,6 +22,22 @@ export function SavedProductsModal({ isOpen, onClose }: SavedProductsModalProps)
   );
 
   const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+  const now = new Date().toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const totalProfit = filteredProducts.reduce((acc, p) => acc + (p.profit || 0), 0);
+  const avgMargin = filteredProducts.length > 0 
+    ? (filteredProducts.reduce((acc, p) => acc + (p.margin || 0), 0) / filteredProducts.length).toFixed(1)
+    : '0';
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const handleLoad = (id: string) => {
     store.loadSavedProduct(id);
@@ -39,8 +56,8 @@ export function SavedProductsModal({ isOpen, onClose }: SavedProductsModalProps)
         className="bg-card w-full max-w-3xl rounded-2xl shadow-2xl border border-border flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="p-6 border-b border-border flex items-center justify-between">
+        {/* Header (Screen only) */}
+        <div className="p-6 border-b border-border flex items-center justify-between print:hidden">
           <div className="flex items-center gap-3">
             <div className="bg-primary/10 p-2.5 rounded-xl text-primary">
               <Package className="w-5 h-5" />
@@ -55,17 +72,31 @@ export function SavedProductsModal({ isOpen, onClose }: SavedProductsModalProps)
               <p className="text-xs text-foreground/60">Seu catálogo de produtos precificados no QuantoVende</p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-foreground/50 hover:text-foreground hover:bg-foreground/5 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {(store.savedProducts?.length || 0) > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrint}
+                className="flex items-center gap-1.5 h-9"
+                title="Imprimir ou gerar PDF simplificado da lista"
+              >
+                <Printer className="w-4 h-4 text-primary" />
+                <span>Imprimir / PDF</span>
+              </Button>
+            )}
+            <button 
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-foreground/50 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Search Bar */}
         {(store.savedProducts?.length || 0) > 0 && (
-          <div className="p-4 border-b border-border/50 bg-muted/20">
+          <div className="p-4 border-b border-border/50 bg-muted/20 print:hidden">
             <div className="relative">
               <Search className="w-4 h-4 text-foreground/40 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -79,8 +110,8 @@ export function SavedProductsModal({ isOpen, onClose }: SavedProductsModalProps)
           </div>
         )}
 
-        {/* Product List */}
-        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+        {/* Product List (Screen only) */}
+        <div className="p-6 overflow-y-auto space-y-4 flex-1 print:hidden">
           {(!store.savedProducts || store.savedProducts.length === 0) ? (
             <div className="text-center py-12 space-y-3">
               <div className="w-16 h-16 bg-muted/30 rounded-full flex items-center justify-center mx-auto text-foreground/30">
@@ -164,8 +195,105 @@ export function SavedProductsModal({ isOpen, onClose }: SavedProductsModalProps)
           )}
         </div>
 
+        {/* Printable Catalog Report Table (Visible only in print) */}
+        <div id="printable-saved-products" className="hidden print:block p-6 bg-white text-slate-900">
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              body * {
+                visibility: hidden;
+              }
+              #printable-saved-products, #printable-saved-products * {
+                visibility: visible;
+              }
+              #printable-saved-products {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 16px 20px;
+                background: white !important;
+                color: #0f172a !important;
+                print-color-adjust: exact !important;
+                -webkit-print-color-adjust: exact !important;
+              }
+              @page {
+                margin: 10mm;
+                size: portrait;
+              }
+            }
+          `}} />
+
+          {/* Report Header */}
+          <div className="flex justify-between items-start pb-4 border-b border-slate-200 mb-4">
+            <div>
+              <div className="mb-1">
+                <Logo isPrint={true} size="md" />
+              </div>
+              <p className="text-xs text-slate-500 font-medium">Catálogo de Produtos & Análise de Margens</p>
+            </div>
+            <div className="text-right text-xs text-slate-500 space-y-0.5">
+              <p><strong>Emissão:</strong> {now}</p>
+              <p><strong>Total de Produtos:</strong> {filteredProducts.length}</p>
+            </div>
+          </div>
+
+          {/* Consolidated KPI Summary */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-center">
+              <span className="text-[10px] text-slate-500 font-medium block">Produtos Cadastrados</span>
+              <span className="text-lg font-black text-slate-800">{filteredProducts.length}</span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-center">
+              <span className="text-[10px] text-slate-500 font-medium block">Margem Média</span>
+              <span className="text-lg font-black text-blue-700">{avgMargin}%</span>
+            </div>
+            <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-center">
+              <span className="text-[10px] text-emerald-800 font-medium block">Lucro Acumulado (1 un. cada)</span>
+              <span className="text-lg font-black text-emerald-700">{fmt(totalProfit)}</span>
+            </div>
+          </div>
+
+          {/* Products Table */}
+          <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
+            <thead className="bg-slate-100 text-slate-700 border-b border-slate-200">
+              <tr>
+                <th className="py-2 px-2.5 text-left font-bold">Produto</th>
+                <th className="py-2 px-2 text-left font-bold">Canal / Categoria</th>
+                <th className="py-2 px-2 text-right font-bold">Custo (CMV)</th>
+                <th className="py-2 px-2 text-right font-bold">Preço Venda</th>
+                <th className="py-2 px-2 text-right font-bold text-emerald-800">Lucro Líquido</th>
+                <th className="py-2 px-2.5 text-right font-bold">Margem</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredProducts.map((p) => {
+                const cat = getCategoryById(p.categoryId);
+                return (
+                  <tr key={p.id}>
+                    <td className="py-2 px-2.5 font-bold text-slate-900">{p.name}</td>
+                    <td className="py-2 px-2 text-slate-600">
+                      <div>{p.marketplaceName}</div>
+                      <div className="text-[10px] text-slate-400">{cat.name}</div>
+                    </td>
+                    <td className="py-2 px-2 text-right font-medium text-slate-700">{fmt(p.productCost)}</td>
+                    <td className="py-2 px-2 text-right font-bold text-slate-900">{fmt(p.salePrice)}</td>
+                    <td className="py-2 px-2 text-right font-bold text-emerald-700">{fmt(p.profit)}</td>
+                    <td className="py-2 px-2.5 text-right font-bold text-slate-800">{p.margin}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Report Footer */}
+          <div className="mt-4 pt-3 border-t border-slate-200 text-[10px] text-slate-400 flex items-center justify-between">
+            <span>QuantoVende • Inteligência de Precificação para E-commerce</span>
+            <span>quantovende.vercel.app</span>
+          </div>
+        </div>
+
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-muted/10 flex items-center justify-between text-xs text-foreground/60">
+        <div className="p-4 border-t border-border bg-muted/10 flex items-center justify-between text-xs text-foreground/60 print:hidden">
           <span>Seus produtos ficam salvos com segurança no seu navegador</span>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Fechar
