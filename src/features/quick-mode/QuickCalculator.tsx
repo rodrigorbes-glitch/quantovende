@@ -485,11 +485,42 @@ export function QuickCalculator() {
             <Card>
               <CardHeader>
                 <CardTitle>Para onde vai seu dinheiro?</CardTitle>
-                {store.marketplaceId === 'mercadolivre' && result.salePrice >= 79 && store.shippingAbsolute === 0 && (
-                  <div className="bg-warning/10 border border-warning/20 text-warning-dark p-3 rounded-lg mt-2 text-sm flex gap-2">
-                    <AlertTriangle className="w-5 h-5 shrink-0" />
-                    <p><strong>Atenção:</strong> No Mercado Livre, anúncios acima de R$79 ativam Frete Grátis obrigatório. O custo do frete será cobrado de você. Se você não informar esse valor no Modo PRO, sua margem real será muito menor.</p>
-                  </div>
+                {store.marketplaceId === 'mercadolivre' && (
+                  <>
+                    {result.salePrice >= 70 && result.salePrice < 79 && (
+                      <div className="bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 p-3.5 rounded-xl mt-2 text-xs flex gap-2.5">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="font-bold text-xs">Atenção à faixa dos R$ 79 no Mercado Livre:</p>
+                          <p className="opacity-90 leading-relaxed">
+                            Por estar abaixo de R$ 79,00, este produto paga <strong>+R$ 6,00 de taxa fixa</strong>. 
+                            Se você pensar em subir para R$ 79,00 para eliminar os R$ 6, cuidado: a partir de R$ 79,00 o Mercado Livre <strong>obriga o Frete Grátis</strong> pago por você (geralmente R$ 18 a R$ 25).
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {result.salePrice >= 79 && (
+                      <div className="bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 p-3.5 rounded-xl mt-2 text-xs flex gap-2.5">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="font-bold text-xs">Frete Grátis Obrigatório Ativo (&ge; R$ 79,00):</p>
+                          <p className="opacity-90 leading-relaxed">
+                            A taxa fixa de R$ 6,00 foi eliminada, mas o frete do Mercado Envios é descontado do seu repasse.
+                            {store.shippingAbsolute === 0 ? (
+                              <span className="block mt-1 text-amber-700 dark:text-amber-300 font-semibold">
+                                Dica: Abra as "Configurações Avançadas (PRO)" e informe o frete médio para ver a margem real.
+                              </span>
+                            ) : (
+                              <span className="block mt-1 text-emerald-700 dark:text-emerald-400 font-semibold">
+                                Custo de frete informado (R$ {store.shippingAbsolute.toFixed(2)}) já está sendo deduzido do seu lucro.
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardHeader>
               <CardContent>

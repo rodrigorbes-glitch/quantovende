@@ -307,11 +307,29 @@ export function MarketplaceComparator() {
               <CardContent className="space-y-6 flex-1 flex flex-col">
                 <div className="mb-2">
                   <Input 
-                    label="Preço de Venda" 
+                    label={
+                      <div className="flex items-center justify-between w-full">
+                        <span>Preço de Venda</span>
+                        {store.comparatorPrices[marketplace.id] !== undefined && store.comparatorPrices[marketplace.id] !== null && store.salePrice > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => store.setComparatorPrice(marketplace.id, null)}
+                            className="text-[11px] text-primary hover:underline font-normal"
+                            title="Voltar ao preço padrão da calculadora"
+                          >
+                            Usar padrão ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(store.salePrice)})
+                          </button>
+                        )}
+                      </div>
+                    }
                     type="number" 
                     prefix="R$" 
                     placeholder="0,00"
-                    value={store.comparatorPrices[marketplace.id] === null || store.comparatorPrices[marketplace.id] === 0 ? '' : (store.comparatorPrices[marketplace.id] ?? '')} 
+                    value={
+                      store.comparatorPrices[marketplace.id] !== undefined && store.comparatorPrices[marketplace.id] !== null
+                        ? store.comparatorPrices[marketplace.id] ?? ''
+                        : (store.salePrice > 0 ? store.salePrice : '')
+                    } 
                     onChange={e => store.setComparatorPrice(marketplace.id, e.target.value ? parseFloat(e.target.value) : null)}
                   />
                 </div>

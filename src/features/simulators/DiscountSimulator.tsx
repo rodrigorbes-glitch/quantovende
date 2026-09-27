@@ -4,7 +4,7 @@ import { calculatePricing, calculateBreakEvenPrice, roundToTwo, type CostsConfig
 import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
 import { Card, CardContent } from '../../ui/components/Card';
 import { Button } from '../../ui/components/Button';
-import { Tag, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Sparkles, Check } from 'lucide-react';
+import { Tag, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Sparkles, Check, RotateCcw } from 'lucide-react';
 
 export function DiscountSimulator() {
   const store = usePricingStore();
@@ -12,6 +12,8 @@ export function DiscountSimulator() {
   const [selectedDiscountPct, setSelectedDiscountPct] = useState<number>(10);
   const [customDiscountInput, setCustomDiscountInput] = useState<string>('');
   const [applied, setApplied] = useState(false);
+  const [basePrice, setBasePrice] = useState<number | null>(null);
+  const [isDiscountActive, setIsDiscountActive] = useState(false);
 
   const mkt = marketplaces[store.marketplaceId];
   const rule = getCommissionRule(
@@ -35,18 +37,19 @@ export function DiscountSimulator() {
     otherPercentage: 0,
   }), [store, rule]);
 
-  const currentPrice = store.salePrice || 0;
+  // Use basePrice if a discount is currently active, so discounts are always relative to original table price
+  const referencePrice = (isDiscountActive && basePrice) ? basePrice : (store.salePrice || 0);
   const breakEven = useMemo(() => calculateBreakEvenPrice(config), [config]);
 
   // Max safe discount
   const maxSafe = useMemo(() => {
-    if (!breakEven || currentPrice <= breakEven) {
+    if (!breakEven || referencePrice <= breakEven) {
       return { pct: 0, reais: 0 };
     }
-    const reais = roundToTwo(currentPrice - breakEven);
-    const pct = roundToTwo((reais / currentPrice) * 100);
+    const reais = roundToTwo(referencePrice - breakEven);
+    const pct = roundToTwo((reais / referencePrice) * 100);
     return { pct, reais };
-  }, [currentPrice, breakEven]);
+  }, [referencePrice, breakEven]);
 
   // Current active discount percentage
   const activeDiscountPct = customDiscountInput !== '' 
@@ -55,10 +58,10 @@ export function DiscountSimulator() {
 
   // Discounted price
   const discountedPrice = useMemo(() => {
-    if (currentPrice <= 0) return 0;
-    const discounted = currentPrice * (1 - activeDiscountPct / 100);
+    if (referencePrice <= 0) return 0;
+    const discounted = referencePrice * (1 - activeDiscountPct / 100);
     return Math.max(1, roundToTwo(discounted));
-  }, [currentPrice, activeDiscountPct]);
+  }, [referencePrice, activeDiscountPct]);
 
   // Recalculate full financial result at discounted price
   const promoResult = useMemo(() => {
@@ -72,13 +75,25 @@ export function DiscountSimulator() {
 
   const handleApplyDiscountedPrice = () => {
     if (discountedPrice > 0) {
+      if (!isDiscountActive) {
+        setBasePrice(store.salePrice);
+      }
       store.setSalePrice(discountedPrice);
+      setIsDiscountActive(true);
       setApplied(true);
-      setTimeout(() => setApplied(false), 2500);
+      setTimeout(() => setApplied(false), 2000);
     }
   };
 
-  if (!store.productCost || store.productCost <= 0 || !currentPrice || currentPrice <= 0) {
+  const handleRestoreBasePrice = () => {
+    if (basePrice) {
+      store.setSalePrice(basePrice);
+    }
+    setIsDiscountActive(false);
+    setBasePrice(null);
+  };
+
+  if (!store.productCost || store.productCost <= 0 || !referencePrice || referencePrice <= 0) {
     return null;
   }
 
@@ -202,7 +217,7 @@ export function DiscountSimulator() {
                   <span className="text-[11px] text-foreground/60 block font-medium">Preço Promocional</span>
                   <div className="flex items-baseline gap-1.5 justify-center sm:justify-start">
                     <span className="text-xl sm:text-2xl font-black text-foreground">{fmt(discountedPrice)}</span>
-                    <span className="text-xs text-red-500 font-semibold">(-{fmt(currentPrice - discountedPrice)})</span>
+                    <span className="text-xs text-red-500 font-semibold">(-{fmt(referencePrice - discountedPrice)})</span>
                   </div>
                 </div>
 
@@ -254,26 +269,61 @@ export function DiscountSimulator() {
                 </div>
               </div>
 
-              {/* Action: Apply price with 1 click */}
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <Button
-                  size="sm"
-                  onClick={handleApplyDiscountedPrice}
-                  className="flex items-center gap-1.5 h-9"
-                  disabled={applied}
-                >
-                  {applied ? (
-                    <>
-                      <Check className="w-4 h-4 text-emerald-300" />
-                      <span>Preço aplicado!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Aplicar {fmt(discountedPrice)} na calculadora</span>
-                    </>
-                  )}
-                </Button>
+              {/* Action: Apply price or Restore original price */}
+              <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/40 flex-wrap">
+                {isDiscountActive ? (
+                  <>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <Check className="w-4 h-4" />
+                      <span>Preço promocional ativo na calculadora</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRestoreBasePrice}
+                        className="flex items-center gap-1.5 h-9 text-xs"
+                        title="Desfazer desconto e voltar ao preço original"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Restaurar preço normal ({basePrice ? fmt(basePrice) : ''})</span>
+                      </Button>
+
+                      {store.salePrice !== discountedPrice && (
+                        <Button
+                          size="sm"
+                          onClick={handleApplyDiscountedPrice}
+                          className="flex items-center gap-1.5 h-9 text-xs"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Mudar para {fmt(discountedPrice)}</span>
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-end gap-2 w-full">
+                    <Button
+                      size="sm"
+                      onClick={handleApplyDiscountedPrice}
+                      className="flex items-center gap-1.5 h-9"
+                      disabled={applied}
+                    >
+                      {applied ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-300" />
+                          <span>Preço aplicado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          <span>Aplicar {fmt(discountedPrice)} na calculadora</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
