@@ -6,15 +6,17 @@ import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
 import { Input, cn } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
-import { TrendingUp, AlertTriangle, XCircle, Calculator, Copy, Check, MessageSquare, BookmarkPlus, Package } from 'lucide-react';
+import { TrendingUp, AlertTriangle, XCircle, Calculator, Copy, Check, MessageSquare, BookmarkPlus, Package, Printer } from 'lucide-react';
 import { TargetPriceSimulator } from '../simulators/TargetPriceSimulator';
 import { RateStatusBadge } from '../simulators/RateStatusBadge';
 import { SavedProductsModal } from '../saved-products/SavedProductsModal';
+import { ProductReportModal } from '../export/ProductReportModal';
 
 export function QuickCalculator() {
   const store = usePricingStore();
   const [copied, setCopied] = useState(false);
   const [savedModalOpen, setSavedModalOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [productNameInput, setProductNameInput] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -136,6 +138,7 @@ export function QuickCalculator() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
       <SavedProductsModal isOpen={savedModalOpen} onClose={() => setSavedModalOpen(false)} />
+      <ProductReportModal isOpen={reportModalOpen} onClose={() => setReportModalOpen(false)} result={result} rule={rule} />
 
       <div className="lg:col-span-5 space-y-6">
         <h2 className="text-2xl font-bold flex items-center justify-between flex-wrap gap-2">
@@ -427,22 +430,24 @@ export function QuickCalculator() {
                     </div>
                   ) : null}
 
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setIsSavingProduct(true)}
-                      className="flex-1 flex items-center justify-center gap-1.5 h-10 border-primary/30 text-primary hover:bg-primary/5"
+                      className="flex items-center justify-center gap-1.5 h-10 border-primary/30 text-primary hover:bg-primary/5"
+                      title="Salvar no seu catálogo pessoal"
                     >
                       <BookmarkPlus className="w-4 h-4" />
-                      <span className="font-medium">Salvar Produto</span>
+                      <span className="font-medium">Salvar</span>
                     </Button>
 
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleCopySummary}
-                      className="flex-1 flex items-center justify-center gap-1.5 h-10"
+                      className="flex items-center justify-center gap-1.5 h-10"
+                      title="Copiar resumo para área de transferência"
                     >
                       {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                       <span className="font-medium">{copied ? 'Copiado!' : 'Copiar'}</span>
@@ -452,10 +457,22 @@ export function QuickCalculator() {
                       variant="outline"
                       size="sm"
                       onClick={handleWhatsAppShare}
-                      className="flex-1 flex items-center justify-center gap-1.5 h-10 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+                      className="flex items-center justify-center gap-1.5 h-10 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+                      title="Compartilhar resumo via WhatsApp"
                     >
                       <MessageSquare className="w-4 h-4 text-emerald-600" />
                       <span className="font-medium">WhatsApp</span>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setReportModalOpen(true)}
+                      className="flex items-center justify-center gap-1.5 h-10 text-foreground/80 hover:text-foreground hover:bg-muted/50"
+                      title="Gerar Ficha Técnica para impressão ou PDF"
+                    >
+                      <Printer className="w-4 h-4 text-primary" />
+                      <span className="font-medium">Gerar PDF</span>
                     </Button>
                   </div>
                 </div>
