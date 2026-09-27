@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
 import { productCategories, getCategoryById } from '../../core/categories';
@@ -6,15 +6,66 @@ import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
 import { Input, cn } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
-import { TrendingUp, AlertTriangle, XCircle } from 'lucide-react';
+import { TrendingUp, AlertTriangle, XCircle, Calculator, Copy, Check, MessageSquare } from 'lucide-react';
 import { TargetPriceSimulator } from '../simulators/TargetPriceSimulator';
 import { RateStatusBadge } from '../simulators/RateStatusBadge';
 
 export function QuickCalculator() {
   const store = usePricingStore();
+  const [copied, setCopied] = useState(false);
   
   const mkt = marketplaces[store.marketplaceId];
   const rule = getCommissionRule(store.marketplaceId, store.marketplaceConditionId, store.officialRates, store.categoryId) || mkt.commissions[0];
+
+  const generateSummaryText = () => {
+    if (!result) return '';
+    const category = getCategoryById(store.categoryId);
+    const condition = mkt.conditions.find(c => c.id === store.marketplaceConditionId) || mkt.conditions[0];
+    const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+    return `🏷️ *QuantoVende - Resumo da Precificação*
+📦 *Categoria:* ${category.icon} ${category.name}
+🛒 *Canal:* ${mkt.name} (${condition.label})
+
+💰 *Preço de Venda:* ${fmt(result.salePrice)}
+📦 *Custo do Produto:* ${fmt(result.breakdown.productCost)}
+🏷️ *Comissão & Taxas:* ${fmt(result.breakdown.marketplaceFee)} (${rule.tiers[0]?.percentage || 0}%)
+🚚 *Frete:* ${fmt(result.breakdown.shipping)}
+🧾 *Impostos & Outros:* ${fmt(result.breakdown.taxes + result.breakdown.marketing + result.breakdown.other)}
+
+━━━━━━━━━━━━━━━━━━━━━━
+💵 *Lucro Líquido:* ${fmt(result.profit)}
+📈 *Margem Líquida:* ${result.margin}%
+━━━━━━━━━━━━━━━━━━━━━━
+
+🔗 Calculado em: https://quantovende.vercel.app/calculadora`;
+  };
+
+  const handleCopySummary = async () => {
+    const text = generateSummaryText();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
+  const handleWhatsAppShare = () => {
+    const text = generateSummaryText();
+    if (!text) return;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
   
   const config: CostsConfig = useMemo(() => ({
     productCost: store.productCost || 0,
@@ -288,6 +339,28 @@ export function QuickCalculator() {
                     );
                   })()}
                 </div>
+
+                <div className="mt-6 pt-6 border-t border-border flex flex-col sm:flex-row gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopySummary}
+                    className="flex-1 flex items-center justify-center gap-2 h-10"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                    <span className="font-medium">{copied ? 'Resumo Copiado!' : 'Copiar Resumo'}</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleWhatsAppShare}
+                    className="flex-1 flex items-center justify-center gap-2 h-10 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+                  >
+                    <MessageSquare className="w-4 h-4 text-emerald-600" />
+                    <span className="font-medium">Enviar no WhatsApp</span>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -384,6 +457,3 @@ export function QuickCalculator() {
     </div>
   );
 }
-
-// Temporary internal import to avoid dependency missing
-import { Calculator } from 'lucide-react';

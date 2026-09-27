@@ -3,16 +3,18 @@ import { usePricingStore, type ComparatorScenario, type ComparatorRate } from '.
 import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
 import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
 import { getMarketplaceRateProfile } from '../../core/rate-intelligence';
-import { productCategories } from '../../core/categories';
+import { productCategories, getCategoryById } from '../../core/categories';
 import { RateStatusBadge } from './RateStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
-import { ArrowRightLeft, Settings, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Button } from '../../ui/components/Button';
+import { ArrowRightLeft, Settings, TrendingUp, AlertTriangle, Copy, Check, MessageSquare } from 'lucide-react';
 import { Input, cn } from '../../ui/components/Input';
 
 
 export function MarketplaceComparator() {
   const store = usePricingStore();
   const [openConfigId, setOpenConfigId] = useState<string | null>(null);
+  const [copiedComparison, setCopiedComparison] = useState(false);
 
   const scenarioOptions = [
     { value: 'STANDARD', label: 'Padrão QuantoVende', desc: 'Usa as regras de referência cadastradas pelo QuantoVende.' },
@@ -84,6 +86,64 @@ export function MarketplaceComparator() {
       profitDiff
     };
   }, [results]);
+
+  const generateComparisonText = () => {
+    if (!insights) return '';
+    const category = getCategoryById(store.categoryId);
+    const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
+    let text = `⚖️ *QuantoVende - Comparador de Marketplaces*
+📦 *Categoria:* ${category.icon} ${category.name}
+💰 *Custo Base:* ${fmt(store.productCost)}
+
+`;
+
+    results.forEach(({ marketplace, result, activePrice }) => {
+      if (result) {
+        text += `🛒 *${marketplace.name}:*
+• Preço de Venda: ${fmt(activePrice)}
+• Lucro Líquido: ${fmt(result.profit)} (Margem ${result.margin}%)
+• Taxas & Comissão: ${fmt(result.breakdown.marketplaceFee)}
+
+`;
+      }
+    });
+
+    text += `━━━━━━━━━━━━━━━━━━━━━━
+🏆 *Melhor Lucro:* ${insights.bestProfit.marketplace.name} (+R$ ${insights.profitDiff.toFixed(2).replace('.', ',')} por unidade)
+📈 *Maior Margem:* ${insights.bestMargin.marketplace.name} (${insights.bestMargin.result?.margin}%)
+━━━━━━━━━━━━━━━━━━━━━━
+
+🔗 Comparado em: https://quantovende.vercel.app/calculadora`;
+
+    return text;
+  };
+
+  const handleCopyComparison = async () => {
+    const text = generateComparisonText();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedComparison(true);
+      setTimeout(() => setCopiedComparison(false), 2500);
+    } catch {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopiedComparison(true);
+      setTimeout(() => setCopiedComparison(false), 2500);
+    }
+  };
+
+  const handleWhatsAppComparison = () => {
+    const text = generateComparisonText();
+    if (!text) return;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
 
   if (comparisons.length === 0) return null;
 
@@ -173,6 +233,28 @@ export function MarketplaceComparator() {
                  </span>
                </div>
             )}
+
+            <div className="sm:col-span-2 pt-3 mt-1 border-t border-primary/10 flex flex-wrap gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyComparison}
+                className="flex items-center gap-1.5 h-8 text-xs bg-background/60"
+              >
+                {copiedComparison ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedComparison ? 'Comparativo Copiado!' : 'Copiar Comparativo'}</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleWhatsAppComparison}
+                className="flex items-center gap-1.5 h-8 text-xs text-emerald-600 hover:text-emerald-700 bg-background/60 border-emerald-200 dark:border-emerald-800"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Enviar no WhatsApp</span>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
