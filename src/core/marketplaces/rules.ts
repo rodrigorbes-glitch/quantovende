@@ -100,21 +100,42 @@ export const marketplaces: Record<string, MarketplaceConfig> = {
   }
 };
 
+import { getCategoryPercentage } from '../categories';
+
 export function getCommissionRule(
   marketplaceId: string,
   conditionId: string,
-  officialRates?: Record<string, any>
+  officialRates?: Record<string, any>,
+  categoryId?: string
 ) {
   const mkt = marketplaces[marketplaceId];
   if (!mkt) return null;
 
+  let baseRule = null;
   const dynamicRates = officialRates?.[marketplaceId]?.rates;
   if (Array.isArray(dynamicRates)) {
     const dynamicRule = dynamicRates.find((r: any) => r.conditionId === conditionId);
     if (dynamicRule && Array.isArray(dynamicRule.tiers) && dynamicRule.tiers.length > 0) {
-      return dynamicRule;
+      baseRule = dynamicRule;
     }
   }
 
-  return mkt.commissions.find(c => c.conditionId === conditionId) || mkt.commissions[0];
+  if (!baseRule) {
+    baseRule = mkt.commissions.find(c => c.conditionId === conditionId) || mkt.commissions[0];
+  }
+
+  if (categoryId) {
+    const catPercentage = getCategoryPercentage(categoryId, marketplaceId, conditionId);
+    if (typeof catPercentage === 'number') {
+      return {
+        ...baseRule,
+        tiers: baseRule.tiers.map((t: any) => ({
+          ...t,
+          percentage: catPercentage
+        }))
+      };
+    }
+  }
+
+  return baseRule;
 }

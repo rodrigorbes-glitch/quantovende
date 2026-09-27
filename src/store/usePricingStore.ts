@@ -18,6 +18,7 @@ interface AppState {
   salePrice: number;
   marketplaceId: string;
   marketplaceConditionId: string;
+  categoryId: string;
   
   // Custom Overrides para Taxas (Modo PRO)
   customCommissionPercentage: number | null;
@@ -50,9 +51,10 @@ interface AppState {
   setProductCost: (v: number) => void;
   setSalePrice: (v: number) => void;
   setMarketplace: (id: string, conditionId: string) => void;
+  setCategoryId: (id: string) => void;
   setComparatorPrice: (marketplaceId: string, price: number | null) => void;
   setComparatorRate: (scenario: 'CUSTOM' | 'PROMOTION', marketplaceId: string, field: keyof ComparatorRate, value: number | null) => void;
-  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding'>, value: any) => void;
+  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setCategoryId' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding'>, value: any) => void;
   resetAnalysis: () => void;
   clearData: () => void;
   // Supabase / Rate Intelligence
@@ -65,6 +67,7 @@ const initialState = {
   salePrice: 0,
   marketplaceId: 'mercadolivre',
   marketplaceConditionId: 'classic',
+  categoryId: 'general',
   customCommissionPercentage: null,
   customFixedFee: null,
   taxesPercentage: 0,
@@ -97,6 +100,7 @@ export const usePricingStore = create<AppState>()(
         customCommissionPercentage: null,
         customFixedFee: null
       }),
+      setCategoryId: (id) => set({ categoryId: id }),
       setComparatorPrice: (id, price) => set((state) => ({ 
         comparatorPrices: { ...state.comparatorPrices, [id]: price } 
       })),

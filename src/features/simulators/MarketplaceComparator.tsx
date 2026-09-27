@@ -3,6 +3,7 @@ import { usePricingStore, type ComparatorScenario, type ComparatorRate } from '.
 import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
 import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
 import { getMarketplaceRateProfile } from '../../core/rate-intelligence';
+import { productCategories } from '../../core/categories';
 import { RateStatusBadge } from './RateStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
 import { ArrowRightLeft, Settings, TrendingUp, AlertTriangle } from 'lucide-react';
@@ -36,7 +37,7 @@ export function MarketplaceComparator() {
       const rawLocalPrice = store.comparatorPrices[marketplace.id];
       const activePrice = (rawLocalPrice !== undefined ? rawLocalPrice : store.salePrice) || 0;
       
-      const rule = getCommissionRule(marketplace.id, condition.id, store.officialRates) || marketplace.commissions.find(c => c.conditionId === condition.id)!;
+      const rule = getCommissionRule(marketplace.id, condition.id, store.officialRates, store.categoryId) || marketplace.commissions.find(c => c.conditionId === condition.id)!;
       
       let customConfig: ComparatorRate | undefined;
       if (store.comparatorScenario === 'CUSTOM') customConfig = store.comparatorCustomRates[marketplace.id];
@@ -96,25 +97,44 @@ export function MarketplaceComparator() {
           <h2 className="text-xl sm:text-2xl font-bold">Comparador de Marketplaces</h2>
         </div>
         
-        <div className="flex flex-col sm:items-end w-full sm:w-auto">
-          <label className="text-xs font-semibold uppercase tracking-wider text-foreground/50 mb-1 flex items-center gap-1.5">
-            Cenário de Taxas
-            <div className="group relative cursor-help flex items-center justify-center w-3.5 h-3.5 rounded-full bg-foreground/10 text-[9px] font-bold text-foreground/60 hover:bg-primary/20 hover:text-primary transition-colors">
-              i
-              <div className="pointer-events-none opacity-0 group-hover:opacity-100 focus:opacity-100 focus-within:opacity-100 transition-opacity absolute top-full sm:bottom-full sm:top-auto right-0 sm:left-1/2 sm:-translate-x-1/2 mt-2 sm:mt-0 sm:mb-2 w-48 p-2 bg-card border border-border shadow-xl rounded-lg text-[10px] font-normal normal-case text-foreground/80 z-50 text-left leading-relaxed">
-                As taxas podem variar conforme sua conta e as condições do marketplace.
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-col w-full sm:w-auto">
+            <label className="text-xs font-semibold uppercase tracking-wider text-foreground/50 mb-1">
+              Categoria
+            </label>
+            <select 
+              className="h-10 rounded-lg border border-input bg-card px-3 text-sm font-medium w-full sm:w-52 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              value={store.categoryId}
+              onChange={e => store.setCategoryId(e.target.value)}
+            >
+              {productCategories.map(cat => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.icon} {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col w-full sm:w-auto">
+            <label className="text-xs font-semibold uppercase tracking-wider text-foreground/50 mb-1 flex items-center gap-1.5">
+              Cenário de Taxas
+              <div className="group relative cursor-help flex items-center justify-center w-3.5 h-3.5 rounded-full bg-foreground/10 text-[9px] font-bold text-foreground/60 hover:bg-primary/20 hover:text-primary transition-colors">
+                i
+                <div className="pointer-events-none opacity-0 group-hover:opacity-100 focus:opacity-100 focus-within:opacity-100 transition-opacity absolute top-full sm:bottom-full sm:top-auto right-0 sm:left-1/2 sm:-translate-x-1/2 mt-2 sm:mt-0 sm:mb-2 w-48 p-2 bg-card border border-border shadow-xl rounded-lg text-[10px] font-normal normal-case text-foreground/80 z-50 text-left leading-relaxed">
+                  As taxas podem variar conforme sua conta e as condições do marketplace.
+                </div>
               </div>
-            </div>
-          </label>
-          <select 
-            className="h-10 rounded-lg border border-input bg-card px-3 text-sm font-medium w-full sm:w-56 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            value={store.comparatorScenario}
-            onChange={e => store.setAdvancedField('comparatorScenario', e.target.value as ComparatorScenario)}
-          >
-            {scenarioOptions.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
+            </label>
+            <select 
+              className="h-10 rounded-lg border border-input bg-card px-3 text-sm font-medium w-full sm:w-52 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              value={store.comparatorScenario}
+              onChange={e => store.setAdvancedField('comparatorScenario', e.target.value as ComparatorScenario)}
+            >
+              {scenarioOptions.map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

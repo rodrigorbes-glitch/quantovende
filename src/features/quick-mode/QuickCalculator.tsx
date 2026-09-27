@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
+import { productCategories, getCategoryById } from '../../core/categories';
 import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
 import { Input, cn } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
@@ -13,7 +14,7 @@ export function QuickCalculator() {
   const store = usePricingStore();
   
   const mkt = marketplaces[store.marketplaceId];
-  const rule = getCommissionRule(store.marketplaceId, store.marketplaceConditionId, store.officialRates) || mkt.commissions[0];
+  const rule = getCommissionRule(store.marketplaceId, store.marketplaceConditionId, store.officialRates, store.categoryId) || mkt.commissions[0];
   
   const config: CostsConfig = useMemo(() => ({
     productCost: store.productCost || 0,
@@ -114,6 +115,29 @@ export function QuickCalculator() {
                 </optgroup>
               ))}
             </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5 w-full">
+            <label className="text-sm font-medium text-foreground/90 flex items-center justify-between">
+              <span>Categoria do Produto</span>
+              <span className="text-xs font-normal text-primary">
+                {getCategoryById(store.categoryId).icon} {getCategoryById(store.categoryId).name}
+              </span>
+            </label>
+            <select 
+              className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              value={store.categoryId}
+              onChange={e => store.setCategoryId(e.target.value)}
+            >
+              {productCategories.map(cat => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.icon} {cat.name}
+                </option>
+              ))}
+            </select>
+            <span className="text-[11px] text-foreground/60">
+              {getCategoryById(store.categoryId).description}
+            </span>
           </div>
 
           <Input 
