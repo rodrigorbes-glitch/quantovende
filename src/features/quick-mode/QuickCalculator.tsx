@@ -6,16 +6,35 @@ import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
 import { Input, cn } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
-import { TrendingUp, AlertTriangle, XCircle, Calculator, Copy, Check, MessageSquare } from 'lucide-react';
+import { TrendingUp, AlertTriangle, XCircle, Calculator, Copy, Check, MessageSquare, BookmarkPlus, Package } from 'lucide-react';
 import { TargetPriceSimulator } from '../simulators/TargetPriceSimulator';
 import { RateStatusBadge } from '../simulators/RateStatusBadge';
+import { SavedProductsModal } from '../saved-products/SavedProductsModal';
 
 export function QuickCalculator() {
   const store = usePricingStore();
   const [copied, setCopied] = useState(false);
+  const [savedModalOpen, setSavedModalOpen] = useState(false);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [productNameInput, setProductNameInput] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
   
   const mkt = marketplaces[store.marketplaceId];
   const rule = getCommissionRule(store.marketplaceId, store.marketplaceConditionId, store.officialRates, store.categoryId) || mkt.commissions[0];
+
+  const handleConfirmSave = () => {
+    if (!result) return;
+    const condition = mkt.conditions.find(c => c.id === store.marketplaceConditionId) || mkt.conditions[0];
+    store.saveCurrentProduct(productNameInput, {
+      profit: result.profit,
+      margin: result.margin,
+      marketplaceName: `${mkt.name} (${condition.label})`
+    });
+    setIsSavingProduct(false);
+    setProductNameInput('');
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3500);
+  };
 
   const generateSummaryText = () => {
     if (!result) return '';
@@ -115,24 +134,41 @@ export function QuickCalculator() {
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
+      <SavedProductsModal isOpen={savedModalOpen} onClose={() => setSavedModalOpen(false)} />
+
       <div className="lg:col-span-5 space-y-6">
         <h2 className="text-2xl font-bold flex items-center justify-between flex-wrap gap-2">
           <span>Modo Rápido</span>
-          <button
-            onClick={() => {
-              if (store.productCost > 0 || store.salePrice > 0) {
-                if (window.confirm('Começar uma nova simulação? Os dados desta análise serão substituídos.')) {
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSavedModalOpen(true)}
+              className="text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0"
+              title="Ver produtos salvos"
+            >
+              <Package className="w-3.5 h-3.5" />
+              <span>Salvos</span>
+              {(store.savedProducts?.length || 0) > 0 && (
+                <span className="bg-primary text-primary-foreground text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                  {store.savedProducts.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                if (store.productCost > 0 || store.salePrice > 0) {
+                  if (window.confirm('Começar uma nova simulação? Os dados desta análise serão substituídos.')) {
+                    store.resetAnalysis();
+                  }
+                } else {
                   store.resetAnalysis();
                 }
-              } else {
-                store.resetAnalysis();
-              }
-            }}
-            className="text-xs font-medium text-primary hover:text-primary/80 transition-colors px-3 py-1.5 border border-primary/20 rounded-lg bg-primary/5 shrink-0"
-          >
-            Nova simulação
-          </button>
+              }}
+              className="text-xs font-medium text-foreground/60 hover:text-foreground transition-colors px-2.5 py-1.5 border border-border rounded-lg bg-card shrink-0"
+            >
+              Nova simulação
+            </button>
+          </div>
         </h2>
         <p className="text-foreground/70 text-sm">Descubra rapidamente quanto sobra no seu bolso.</p>
         
@@ -340,26 +376,88 @@ export function QuickCalculator() {
                   })()}
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-border flex flex-col sm:flex-row gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopySummary}
-                    className="flex-1 flex items-center justify-center gap-2 h-10"
-                  >
-                    {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
-                    <span className="font-medium">{copied ? 'Resumo Copiado!' : 'Copiar Resumo'}</span>
-                  </Button>
+                <div className="mt-6 pt-6 border-t border-border space-y-3">
+                  {isSavingProduct ? (
+                    <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3 animate-in fade-in">
+                      <p className="text-xs font-semibold text-foreground">Salvar este produto no seu catálogo:</p>
+                      <input
+                        type="text"
+                        placeholder="Ex: Fone Bluetooth Pro, Camiseta Algodão..."
+                        value={productNameInput}
+                        onChange={e => setProductNameInput(e.target.value)}
+                        className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        autoFocus
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleConfirmSave();
+                        }}
+                      />
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setIsSavingProduct(false);
+                            setProductNameInput('');
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleConfirmSave}
+                          className="flex items-center gap-1.5"
+                        >
+                          <BookmarkPlus className="w-4 h-4" />
+                          <span>Salvar</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : saveSuccess ? (
+                    <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs font-medium flex items-center justify-between animate-in fade-in">
+                      <span className="flex items-center gap-1.5">
+                        <Check className="w-4 h-4 text-green-600" />
+                        Produto salvo com sucesso no seu catálogo!
+                      </span>
+                      <button
+                        onClick={() => setSavedModalOpen(true)}
+                        className="text-primary hover:underline font-semibold"
+                      >
+                        Ver produtos
+                      </button>
+                    </div>
+                  ) : null}
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleWhatsAppShare}
-                    className="flex-1 flex items-center justify-center gap-2 h-10 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
-                  >
-                    <MessageSquare className="w-4 h-4 text-emerald-600" />
-                    <span className="font-medium">Enviar no WhatsApp</span>
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsSavingProduct(true)}
+                      className="flex-1 flex items-center justify-center gap-1.5 h-10 border-primary/30 text-primary hover:bg-primary/5"
+                    >
+                      <BookmarkPlus className="w-4 h-4" />
+                      <span className="font-medium">Salvar Produto</span>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopySummary}
+                      className="flex-1 flex items-center justify-center gap-1.5 h-10"
+                    >
+                      {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                      <span className="font-medium">{copied ? 'Copiado!' : 'Copiar'}</span>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleWhatsAppShare}
+                      className="flex-1 flex items-center justify-center gap-1.5 h-10 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+                    >
+                      <MessageSquare className="w-4 h-4 text-emerald-600" />
+                      <span className="font-medium">WhatsApp</span>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -1,21 +1,23 @@
 import type { ReactNode } from 'react';
-import { Calculator } from 'lucide-react';
+import { useState } from 'react';
+import { Calculator, Package } from 'lucide-react';
 import { usePricingStore } from '../../store/usePricingStore';
+import { OnboardingModal } from '../../features/onboarding/OnboardingModal';
+import { SavedProductsModal } from '../../features/saved-products/SavedProductsModal';
 
 interface MainLayoutProps {
   children: ReactNode;
 }
 
-import { useState } from 'react';
-import { OnboardingModal } from '../../features/onboarding/OnboardingModal';
-
 export function MainLayout({ children }: MainLayoutProps) {
   const store = usePricingStore();
   const [forceOnboarding, setForceOnboarding] = useState(false);
+  const [savedProductsOpen, setSavedProductsOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground flex flex-col">
       <OnboardingModal forceOpen={forceOnboarding} onClose={() => setForceOnboarding(false)} />
+      <SavedProductsModal isOpen={savedProductsOpen} onClose={() => setSavedProductsOpen(false)} />
       
       <header className="border-b border-border/40 bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -26,6 +28,18 @@ export function MainLayout({ children }: MainLayoutProps) {
             <span className="font-bold text-xl tracking-tight hidden sm:block">Quanto<span className="text-primary">Vende</span></span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => setSavedProductsOpen(true)}
+              className="text-xs font-semibold text-primary hover:text-primary/90 transition-colors px-2.5 py-1.5 rounded-lg bg-primary/10 flex items-center gap-1.5"
+            >
+              <Package className="w-3.5 h-3.5" />
+              <span>Meus Produtos</span>
+              {(store.savedProducts?.length || 0) > 0 && (
+                <span className="bg-primary text-primary-foreground text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                  {store.savedProducts.length}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => { window.location.href = '/integracoes'; }}
               className="text-xs font-medium text-foreground/60 hover:text-foreground transition-colors px-2 py-1.5"

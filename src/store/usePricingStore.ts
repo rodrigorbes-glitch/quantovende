@@ -12,6 +12,25 @@ export interface ComparatorRate {
   other: number | null;
 }
 
+export interface SavedProduct {
+  id: string;
+  name: string;
+  createdAt: string;
+  productCost: number;
+  salePrice: number;
+  marketplaceId: string;
+  marketplaceConditionId: string;
+  categoryId: string;
+  taxesPercentage: number;
+  shippingAbsolute: number;
+  marketingAbsolute: number;
+  otherAbsolute: number;
+  isProMode: boolean;
+  profit: number;
+  margin: number;
+  marketplaceName: string;
+}
+
 interface AppState {
   // Entradas Básicas
   productCost: number;
@@ -43,6 +62,9 @@ interface AppState {
   comparatorPromoStart: string;
   comparatorPromoEnd: string;
 
+  // Catálogo de Produtos Salvos
+  savedProducts: SavedProduct[];
+
   // Onboarding
   hasSeenOnboarding: boolean;
   setHasSeenOnboarding: (v: boolean) => void;
@@ -54,7 +76,10 @@ interface AppState {
   setCategoryId: (id: string) => void;
   setComparatorPrice: (marketplaceId: string, price: number | null) => void;
   setComparatorRate: (scenario: 'CUSTOM' | 'PROMOTION', marketplaceId: string, field: keyof ComparatorRate, value: number | null) => void;
-  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setCategoryId' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding'>, value: any) => void;
+  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setCategoryId' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding' | 'saveCurrentProduct' | 'loadSavedProduct' | 'deleteSavedProduct'>, value: any) => void;
+  saveCurrentProduct: (name: string, snapshot: { profit: number; margin: number; marketplaceName: string }) => void;
+  loadSavedProduct: (id: string) => void;
+  deleteSavedProduct: (id: string) => void;
   resetAnalysis: () => void;
   clearData: () => void;
   // Supabase / Rate Intelligence
@@ -83,6 +108,7 @@ const initialState = {
   comparatorPromoName: 'Promoção / Isenção',
   comparatorPromoStart: '',
   comparatorPromoEnd: '',
+  savedProducts: [] as SavedProduct[],
   officialRates: {},
 };
 
@@ -117,6 +143,51 @@ export const usePricingStore = create<AppState>()(
         };
       }),
       setAdvancedField: (field, value) => set({ [field]: value }),
+      saveCurrentProduct: (name, snapshot) => set((state) => {
+        const newProduct: SavedProduct = {
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `prod_${Date.now()}`,
+          name: name.trim() || `Produto #${state.savedProducts.length + 1}`,
+          createdAt: new Date().toISOString(),
+          productCost: state.productCost,
+          salePrice: state.salePrice,
+          marketplaceId: state.marketplaceId,
+          marketplaceConditionId: state.marketplaceConditionId,
+          categoryId: state.categoryId || 'general',
+          taxesPercentage: state.taxesPercentage || 0,
+          shippingAbsolute: state.shippingAbsolute || 0,
+          marketingAbsolute: state.marketingAbsolute || 0,
+          otherAbsolute: state.otherAbsolute || 0,
+          isProMode: state.isProMode,
+          profit: snapshot.profit,
+          margin: snapshot.margin,
+          marketplaceName: snapshot.marketplaceName,
+        };
+        return {
+          savedProducts: [newProduct, ...state.savedProducts]
+        };
+      }),
+      loadSavedProduct: (id) => set((state) => {
+        const product = state.savedProducts.find(p => p.id === id);
+        if (!product) return state;
+        return {
+          ...state,
+          productCost: product.productCost,
+          salePrice: product.salePrice,
+          marketplaceId: product.marketplaceId,
+          marketplaceConditionId: product.marketplaceConditionId,
+          categoryId: product.categoryId || 'general',
+          taxesPercentage: product.taxesPercentage || 0,
+          shippingAbsolute: product.shippingAbsolute || 0,
+          marketingAbsolute: product.marketingAbsolute || 0,
+          otherAbsolute: product.otherAbsolute || 0,
+          isProMode: product.isProMode || false,
+          customCommissionPercentage: null,
+          customFixedFee: null,
+        };
+      }),
+      deleteSavedProduct: (id) => set((state) => ({
+        savedProducts: state.savedProducts.filter(p => p.id !== id)
+      })),
       syncOfficialRates: async () => {
         // Import inline to avoid circular dependencies if any
         const { fetchMarketplaceRateProfileAsync } = await import('../core/rate-intelligence');
@@ -130,11 +201,15 @@ export const usePricingStore = create<AppState>()(
       },
       resetAnalysis: () => set((state) => ({
         ...initialState,
-        hasSeenOnboarding: state.hasSeenOnboarding // keeps onboarding status
+        hasSeenOnboarding: state.hasSeenOnboarding,
+        savedProducts: state.savedProducts,
+        officialRates: state.officialRates,
       })),
       clearData: () => set((state) => ({
         ...initialState,
-        hasSeenOnboarding: state.hasSeenOnboarding // clearData also preserves onboarding
+        hasSeenOnboarding: state.hasSeenOnboarding,
+        savedProducts: state.savedProducts,
+        officialRates: state.officialRates,
       })),
     }),
     {
