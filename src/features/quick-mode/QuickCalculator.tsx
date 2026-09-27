@@ -110,6 +110,54 @@ export function QuickCalculator() {
     return null;
   }, [store.salePrice, config]);
 
+  const channelPreviews = useMemo(() => {
+    return Object.values(marketplaces).map(m => {
+      const conditionId = m.id === store.marketplaceId ? store.marketplaceConditionId : m.conditions[0].id;
+      const r = getCommissionRule(m.id, conditionId, store.officialRates, store.categoryId) || m.commissions[0];
+      
+      if (!store.productCost || store.productCost <= 0 || !store.salePrice || store.salePrice <= 0) {
+        return {
+          id: m.id,
+          name: m.name,
+          conditionId,
+          conditions: m.conditions,
+          profit: null as number | null,
+          margin: null as number | null,
+        };
+      }
+
+      const cfg: CostsConfig = {
+        productCost: store.productCost,
+        shippingAbsolute: store.isProMode ? store.shippingAbsolute : 0,
+        shippingPercentage: 0,
+        commissionTiers: r.tiers,
+        customFixedFee: store.isProMode ? store.customFixedFee : null,
+        customCommissionPercentage: store.isProMode ? store.customCommissionPercentage : null,
+        taxesPercentage: store.isProMode ? store.taxesPercentage : 0,
+        marketingAbsolute: store.isProMode ? store.marketingAbsolute : 0,
+        marketingPercentage: 0,
+        otherAbsolute: store.isProMode ? store.otherAbsolute : 0,
+        otherPercentage: 0,
+      };
+
+      const res = calculatePricing(store.salePrice, cfg);
+      return {
+        id: m.id,
+        name: m.name,
+        conditionId,
+        conditions: m.conditions,
+        profit: res.profit,
+        margin: res.margin,
+      };
+    });
+  }, [store.productCost, store.salePrice, store.marketplaceId, store.marketplaceConditionId, store.categoryId, store.officialRates, store.isProMode, store.shippingAbsolute, store.customFixedFee, store.customCommissionPercentage, store.taxesPercentage, store.marketingAbsolute, store.otherAbsolute]);
+
+  const maxChannelProfit = useMemo(() => {
+    const valid = channelPreviews.filter(c => c.profit !== null && c.profit > 0);
+    if (valid.length === 0) return null;
+    return Math.max(...valid.map(c => c.profit!));
+  }, [channelPreviews]);
+
   const getTrafficLight = (margin: number) => {
     if (margin >= 15) return { color: 'text-success', bg: 'bg-success/10', icon: TrendingUp, title: 'Margem Saudável', desc: 'Seu preço gera um lucro sustentável.' };
     if (margin > 0 && margin < 15) return { color: 'text-warning', bg: 'bg-warning/10', icon: AlertTriangle, title: 'Atenção (Margem Baixa)', desc: 'Pequenos aumentos de custo podem zerar o lucro.' };
@@ -185,28 +233,15 @@ export function QuickCalculator() {
             value={store.productCost || ''}
             onChange={e => store.setProductCost(parseFloat(e.target.value) || 0)}
           />
-          
-          <div className="flex flex-col gap-1.5 w-full">
-            <label className="text-sm font-medium text-foreground/90">Marketplace</label>
-            <select 
-              className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              value={`${store.marketplaceId}|${store.marketplaceConditionId}`}
-              onChange={e => {
-                const [id, cond] = e.target.value.split('|');
-                store.setMarketplace(id, cond);
-              }}
-            >
-              {Object.values(marketplaces).map(m => (
-                <optgroup key={m.id} label={m.name}>
-                  {m.conditions.map(c => (
-                    <option key={c.id} value={`${m.id}|${c.id}`}>
-                      {m.name} - {c.label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
+
+          <Input 
+            label="Preço de Venda (R$)" 
+            type="number" 
+            placeholder="0,00"
+            prefix="R$"
+            value={store.salePrice || ''}
+            onChange={e => store.setSalePrice(parseFloat(e.target.value) || 0)}
+          />
 
           <div className="flex flex-col gap-1.5 w-full">
             <label className="text-sm font-medium text-foreground/90 flex items-center justify-between">
@@ -230,15 +265,6 @@ export function QuickCalculator() {
               {getCategoryById(store.categoryId).description}
             </span>
           </div>
-
-          <Input 
-            label="Preço de Venda (R$)" 
-            type="number" 
-            placeholder="0,00"
-            prefix="R$"
-            value={store.salePrice || ''}
-            onChange={e => store.setSalePrice(parseFloat(e.target.value) || 0)}
-          />
         </div>
 
         {store.isProMode && (
@@ -341,7 +367,86 @@ export function QuickCalculator() {
         ) : (
           <div className="space-y-6">
             <Card className="bg-card">
-              <CardContent className="p-8">
+              <CardContent className="p-6 sm:p-8 space-y-6">
+                {/* Marketplace Switcher Tabs */}
+                <div className="space-y-3 pb-6 border-b border-border">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-foreground/50">
+                      Canal de Venda em Análise:
+                    </span>
+                    
+                    {/* Condition Selector for active marketplace */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-foreground/50">Modalidade:</span>
+                      <div className="inline-flex rounded-lg bg-muted/50 p-0.5 border border-border/60">
+                        {mkt.conditions.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => store.setMarketplace(store.marketplaceId, c.id)}
+                            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                              store.marketplaceConditionId === c.id
+                                ? 'bg-card text-foreground shadow-xs font-semibold'
+                                : 'text-foreground/60 hover:text-foreground'
+                            }`}
+                          >
+                            {c.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3 Channel Tabs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {channelPreviews.map(tab => {
+                      const isSelected = store.marketplaceId === tab.id;
+                      const isBest = maxChannelProfit !== null && tab.profit === maxChannelProfit;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => {
+                            const condition = store.marketplaceId === tab.id 
+                              ? store.marketplaceConditionId 
+                              : tab.conditions[0].id;
+                            store.setMarketplace(tab.id, condition);
+                          }}
+                          className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                            isSelected
+                              ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary'
+                              : 'bg-card border-border hover:border-primary/40 text-foreground/70 hover:bg-muted/20'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 w-full">
+                            <span className={`font-bold text-xs sm:text-sm ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                              {tab.name}
+                            </span>
+                            {isBest && (
+                              <span className="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                                Mais Lucro
+                              </span>
+                            )}
+                          </div>
+
+                          {tab.profit !== null ? (
+                            <div className="mt-2 flex items-baseline gap-1.5">
+                              <span className={`text-base font-black ${tab.profit > 0 ? 'text-success' : 'text-danger'}`}>
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tab.profit)}
+                              </span>
+                              <span className="text-[11px] font-medium text-foreground/50">
+                                ({tab.margin}%)
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-foreground/40 mt-1">Ver projeção</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                   <div>
                     <p className="text-sm font-medium text-foreground/60 mb-1">Você Vende Por</p>
