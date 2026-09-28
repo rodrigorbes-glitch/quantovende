@@ -3,6 +3,7 @@ import { usePricingStore } from '../../store/usePricingStore';
 import { calculateTargetPrice, calculateBreakEvenPrice, roundToTwo, type CostsConfig } from '../../core/math/pricing';
 import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
 import { getCategoryById } from '../../core/categories';
+import { estimateShipping } from '../../core/shipping';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
 import { Input } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
@@ -23,19 +24,31 @@ export function TargetPriceSimulator() {
   const category = getCategoryById(store.categoryId);
   const condition = mkt.conditions.find(c => c.id === store.marketplaceConditionId) || mkt.conditions[0];
 
+  const kitQty = store.kitQuantity || 1;
+  const effectiveCMV = (store.productCost || 0) * kitQty;
+
+  const shippingEstimate = useMemo(() => {
+    return estimateShipping(
+      store.marketplaceId,
+      store.salePrice || 100,
+      store.shippingWeightTier,
+      store.isProMode ? (store.shippingAbsolute || 0) : 0
+    );
+  }, [store.marketplaceId, store.salePrice, store.shippingWeightTier, store.isProMode, store.shippingAbsolute]);
+
   const config: CostsConfig = useMemo(() => ({
-    productCost: store.productCost || 0,
-    shippingAbsolute: store.isProMode ? (store.shippingAbsolute || 0) : 0,
+    productCost: effectiveCMV,
+    shippingAbsolute: shippingEstimate.estimatedCost,
     shippingPercentage: 0,
     commissionTiers: rule.tiers,
     customFixedFee: store.isProMode ? store.customFixedFee : null,
     customCommissionPercentage: store.isProMode ? store.customCommissionPercentage : null,
-    taxesPercentage: store.isProMode ? (store.taxesPercentage || 0) : 0,
+    taxesPercentage: store.taxesPercentage || 0,
     marketingAbsolute: store.isProMode ? (store.marketingAbsolute || 0) : 0,
     marketingPercentage: 0,
     otherAbsolute: store.isProMode ? (store.otherAbsolute || 0) : 0,
     otherPercentage: 0,
-  }), [store, rule]);
+  }), [effectiveCMV, shippingEstimate.estimatedCost, rule.tiers, store.isProMode, store.customFixedFee, store.customCommissionPercentage, store.taxesPercentage, store.marketingAbsolute, store.otherAbsolute]);
 
   const targetPrice = useMemo(() => calculateTargetPrice(store.targetMarginPercentage, config), [store.targetMarginPercentage, config]);
   const breakEven = useMemo(() => calculateBreakEvenPrice(config), [config]);
@@ -64,6 +77,12 @@ export function TargetPriceSimulator() {
             <span>{category.name}</span>
             <span>•</span>
             <span>{mkt.name} ({condition.label})</span>
+            {kitQty > 1 && (
+              <>
+                <span>•</span>
+                <span className="font-bold text-primary">Kit {kitQty} un</span>
+              </>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -114,8 +133,13 @@ export function TargetPriceSimulator() {
               <p className="text-2xl font-bold text-foreground">
                 {breakEven ? fmt(breakEven) : 'Impossível'}
               </p>
+              {breakEven && kitQty > 1 && (
+                <p className="text-xs text-foreground/70 font-semibold mt-0.5">
+                  ou {fmt(breakEven / kitQty)} por unidade
+                </p>
+              )}
               <p className="text-xs text-foreground/60 mt-1 leading-relaxed">
-                Cobre exatamente o custo ({fmt(store.productCost)}) + taxas do canal. Lucro: R$ 0,00.
+                Cobre exatamente o custo {kitQty > 1 ? `do kit (${fmt(effectiveCMV)})` : `(${fmt(store.productCost)})`} + taxas e frete. Lucro: R$ 0,00.
               </p>
             </div>
 
@@ -158,8 +182,13 @@ export function TargetPriceSimulator() {
               <p className="text-2xl font-bold text-primary">
                 {targetPrice ? fmt(targetPrice) : 'Impossível com estas taxas'}
               </p>
+              {targetPrice && kitQty > 1 && (
+                <p className="text-xs text-primary font-bold mt-0.5">
+                  ou {fmt(targetPrice / kitQty)} por unidade
+                </p>
+              )}
               <p className="text-xs text-primary/80 mt-1 leading-relaxed">
-                Preço exato para sobrar <strong>{store.targetMarginPercentage}% líquido</strong> no bolso após pagar o marketplace.
+                Preço {kitQty > 1 ? 'do kit ' : ''}exato para sobrar <strong>{store.targetMarginPercentage}% líquido</strong> no bolso após pagar taxas e frete.
               </p>
             </div>
 

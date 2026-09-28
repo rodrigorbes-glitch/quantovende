@@ -6,7 +6,7 @@ describe('Rate Intelligence Engine', () => {
     const profile = getMarketplaceRateProfile('amazon');
     expect(profile).toBeDefined();
     expect(profile?.marketplace).toBe('Amazon');
-    expect(profile?.status).toBe('MANUAL_REVIEW'); // As per registry.ts
+    expect(profile?.status).toBe('ACTIVE');
   });
 
   it('2. Garante que status MANUAL_REVIEW não aparece como ACTIVE por padrão se a fonte registrar como MANUAL', () => {

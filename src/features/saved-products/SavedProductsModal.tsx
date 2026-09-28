@@ -146,6 +146,11 @@ export function SavedProductsModal({ isOpen, onClose }: SavedProductsModalProps)
                       <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-foreground/70 font-medium">
                         {product.marketplaceName}
                       </span>
+                      {product.kitQuantity && product.kitQuantity > 1 ? (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold">
+                          Kit {product.kitQuantity} un
+                        </span>
+                      ) : null}
                     </div>
 
                     <div className="flex items-center gap-4 text-xs text-foreground/60 flex-wrap">
@@ -270,7 +275,12 @@ export function SavedProductsModal({ isOpen, onClose }: SavedProductsModalProps)
                 const cat = getCategoryById(p.categoryId);
                 return (
                   <tr key={p.id}>
-                    <td className="py-2 px-2.5 font-bold text-slate-900">{p.name}</td>
+                    <td className="py-2 px-2.5 font-bold text-slate-900">
+                      <div>{p.name}</div>
+                      {p.kitQuantity && p.kitQuantity > 1 ? (
+                        <div className="text-[10px] text-emerald-700 font-semibold">Kit com {p.kitQuantity} unidades</div>
+                      ) : null}
+                    </td>
                     <td className="py-2 px-2 text-slate-600">
                       <div>{p.marketplaceName}</div>
                       <div className="text-[10px] text-slate-400">{cat.name}</div>

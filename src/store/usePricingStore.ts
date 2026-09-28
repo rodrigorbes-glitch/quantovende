@@ -29,6 +29,9 @@ export interface SavedProduct {
   profit: number;
   margin: number;
   marketplaceName: string;
+  shippingWeightTier?: string;
+  taxRegime?: string;
+  kitQuantity?: number;
 }
 
 interface AppState {
@@ -38,6 +41,11 @@ interface AppState {
   marketplaceId: string;
   marketplaceConditionId: string;
   categoryId: string;
+
+  // Inteligência de Frete, Impostos e Kits
+  shippingWeightTier: string;
+  taxRegime: string;
+  kitQuantity: number;
   
   // Custom Overrides para Taxas (Modo PRO)
   customCommissionPercentage: number | null;
@@ -74,9 +82,12 @@ interface AppState {
   setSalePrice: (v: number) => void;
   setMarketplace: (id: string, conditionId: string) => void;
   setCategoryId: (id: string) => void;
+  setShippingWeightTier: (tier: string) => void;
+  setTaxRegime: (regime: string, customRate?: number) => void;
+  setKitQuantity: (qty: number) => void;
   setComparatorPrice: (marketplaceId: string, price: number | null) => void;
   setComparatorRate: (scenario: 'CUSTOM' | 'PROMOTION', marketplaceId: string, field: keyof ComparatorRate, value: number | null) => void;
-  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setCategoryId' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding' | 'saveCurrentProduct' | 'loadSavedProduct' | 'deleteSavedProduct'>, value: any) => void;
+  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setCategoryId' | 'setShippingWeightTier' | 'setTaxRegime' | 'setKitQuantity' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding' | 'saveCurrentProduct' | 'loadSavedProduct' | 'deleteSavedProduct'>, value: any) => void;
   saveCurrentProduct: (name: string, snapshot: { profit: number; margin: number; marketplaceName: string }) => void;
   loadSavedProduct: (id: string) => void;
   deleteSavedProduct: (id: string) => void;
@@ -93,6 +104,9 @@ const initialState = {
   marketplaceId: 'mercadolivre',
   marketplaceConditionId: 'classic',
   categoryId: 'general',
+  shippingWeightTier: 'up_to_300g',
+  taxRegime: 'mei',
+  kitQuantity: 1,
   customCommissionPercentage: null,
   customFixedFee: null,
   taxesPercentage: 0,
@@ -127,6 +141,18 @@ export const usePricingStore = create<AppState>()(
         customFixedFee: null
       }),
       setCategoryId: (id) => set({ categoryId: id }),
+      setShippingWeightTier: (tier) => set({ shippingWeightTier: tier }),
+      setTaxRegime: (regime, customRate) => {
+        let rate = 0;
+        if (regime === 'mei') rate = 0;
+        else if (regime === 'simples_faixa1') rate = 4.0;
+        else if (regime === 'simples_faixa2') rate = 7.3;
+        else if (regime === 'simples_faixa3') rate = 9.5;
+        else if (regime === 'lucro_presumido') rate = 11.33;
+        else if (regime === 'custom' && customRate !== undefined) rate = customRate;
+        set((state) => ({ taxRegime: regime, taxesPercentage: regime === 'custom' && customRate === undefined ? state.taxesPercentage : rate }));
+      },
+      setKitQuantity: (qty) => set({ kitQuantity: Math.max(1, Math.round(qty || 1)) }),
       setComparatorPrice: (id, price) => set((state) => ({ 
         comparatorPrices: { ...state.comparatorPrices, [id]: price } 
       })),
@@ -161,6 +187,9 @@ export const usePricingStore = create<AppState>()(
           profit: snapshot.profit,
           margin: snapshot.margin,
           marketplaceName: snapshot.marketplaceName,
+          shippingWeightTier: state.shippingWeightTier,
+          taxRegime: state.taxRegime,
+          kitQuantity: state.kitQuantity,
         };
         return {
           savedProducts: [newProduct, ...state.savedProducts]
@@ -181,6 +210,9 @@ export const usePricingStore = create<AppState>()(
           marketingAbsolute: product.marketingAbsolute || 0,
           otherAbsolute: product.otherAbsolute || 0,
           isProMode: product.isProMode || false,
+          shippingWeightTier: product.shippingWeightTier || 'up_to_300g',
+          taxRegime: product.taxRegime || 'mei',
+          kitQuantity: product.kitQuantity || 1,
           customCommissionPercentage: null,
           customFixedFee: null,
         };

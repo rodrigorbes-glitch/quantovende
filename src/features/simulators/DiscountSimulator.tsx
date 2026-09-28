@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { calculatePricing, calculateBreakEvenPrice, roundToTwo, type CostsConfig } from '../../core/math/pricing';
 import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
+import { estimateShipping } from '../../core/shipping';
 import { Card, CardContent } from '../../ui/components/Card';
 import { Button } from '../../ui/components/Button';
 import { Tag, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Sparkles, Check, RotateCcw } from 'lucide-react';
@@ -23,19 +24,31 @@ export function DiscountSimulator() {
     store.categoryId
   ) || mkt.commissions[0];
 
+  const kitQty = store.kitQuantity || 1;
+  const effectiveCMV = (store.productCost || 0) * kitQty;
+
+  const shippingEstimate = useMemo(() => {
+    return estimateShipping(
+      store.marketplaceId,
+      store.salePrice,
+      store.shippingWeightTier,
+      store.isProMode ? (store.shippingAbsolute || 0) : 0
+    );
+  }, [store.marketplaceId, store.salePrice, store.shippingWeightTier, store.isProMode, store.shippingAbsolute]);
+
   const config: CostsConfig = useMemo(() => ({
-    productCost: store.productCost || 0,
-    shippingAbsolute: store.isProMode ? (store.shippingAbsolute || 0) : 0,
+    productCost: effectiveCMV,
+    shippingAbsolute: shippingEstimate.estimatedCost,
     shippingPercentage: 0,
     commissionTiers: rule.tiers,
     customFixedFee: store.isProMode ? store.customFixedFee : null,
     customCommissionPercentage: store.isProMode ? store.customCommissionPercentage : null,
-    taxesPercentage: store.isProMode ? (store.taxesPercentage || 0) : 0,
+    taxesPercentage: store.taxesPercentage || 0,
     marketingAbsolute: store.isProMode ? (store.marketingAbsolute || 0) : 0,
     marketingPercentage: 0,
     otherAbsolute: store.isProMode ? (store.otherAbsolute || 0) : 0,
     otherPercentage: 0,
-  }), [store, rule]);
+  }), [effectiveCMV, shippingEstimate.estimatedCost, rule.tiers, store.isProMode, store.customFixedFee, store.customCommissionPercentage, store.taxesPercentage, store.marketingAbsolute, store.otherAbsolute]);
 
   // Use basePrice if a discount is currently active, so discounts are always relative to original table price
   const referencePrice = (isDiscountActive && basePrice) ? basePrice : (store.salePrice || 0);

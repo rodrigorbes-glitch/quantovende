@@ -4,6 +4,7 @@ import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
 import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
 import { getMarketplaceRateProfile } from '../../core/rate-intelligence';
 import { productCategories, getCategoryById } from '../../core/categories';
+import { estimateShipping } from '../../core/shipping';
 import { RateStatusBadge } from './RateStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
 import { Button } from '../../ui/components/Button';
@@ -23,6 +24,9 @@ export function MarketplaceComparator() {
   ] as const;
 
   const currentScenario = scenarioOptions.find(s => s.value === store.comparatorScenario) || scenarioOptions[0];
+
+  const kitQty = store.kitQuantity || 1;
+  const effectiveCMV = (store.productCost || 0) * kitQty;
 
   const comparisons = useMemo(() => {
     if (store.productCost <= 0) return [];
@@ -45,24 +49,31 @@ export function MarketplaceComparator() {
       if (store.comparatorScenario === 'CUSTOM') customConfig = store.comparatorCustomRates[marketplace.id];
       if (store.comparatorScenario === 'PROMOTION') customConfig = store.comparatorPromoRates[marketplace.id];
 
+      const defaultShippingCost = estimateShipping(
+        marketplace.id,
+        activePrice,
+        store.shippingWeightTier,
+        store.isProMode ? store.shippingAbsolute : 0
+      ).estimatedCost;
+
       const config: CostsConfig = {
-        productCost: store.productCost,
-        shippingAbsolute: customConfig?.shipping ?? store.shippingAbsolute,
+        productCost: effectiveCMV,
+        shippingAbsolute: customConfig?.shipping ?? defaultShippingCost,
         shippingPercentage: 0,
         commissionTiers: rule.tiers,
         customFixedFee: customConfig?.fixedFee ?? null,
         customCommissionPercentage: customConfig?.commission ?? null,
         taxesPercentage: customConfig?.taxes ?? store.taxesPercentage,
-        marketingAbsolute: customConfig?.marketing ?? store.marketingAbsolute,
+        marketingAbsolute: customConfig?.marketing ?? (store.isProMode ? store.marketingAbsolute : 0),
         marketingPercentage: 0,
-        otherAbsolute: customConfig?.other ?? store.otherAbsolute,
+        otherAbsolute: customConfig?.other ?? (store.isProMode ? store.otherAbsolute : 0),
         otherPercentage: 0,
       };
       
       const result = activePrice > 0 ? calculatePricing(activePrice, config) : null;
       return { marketplace, condition, activePrice, result };
     });
-  }, [comparisons, store]);
+  }, [comparisons, store, effectiveCMV]);
 
   const insights = useMemo(() => {
     const validResults = results.filter(r => r.result && r.result.profit > 0);
@@ -94,23 +105,24 @@ export function MarketplaceComparator() {
 
     let text = `⚖️ *QuantoVende - Comparador de Marketplaces*
 📦 *Categoria:* ${category.icon} ${category.name}
-💰 *Custo Base:* ${fmt(store.productCost)}
+💰 *Custo Base (CMV):* ${fmt(effectiveCMV)}${kitQty > 1 ? ` (${kitQty} un x ${fmt(store.productCost)})` : ''}
 
 `;
 
     results.forEach(({ marketplace, result, activePrice }) => {
       if (result) {
         text += `🛒 *${marketplace.name}:*
-• Preço de Venda: ${fmt(activePrice)}
-• Lucro Líquido: ${fmt(result.profit)} (Margem ${result.margin}%)
+• Preço de Venda: ${fmt(activePrice)}${kitQty > 1 ? ` (Kit ${kitQty} un)` : ''}
+• Lucro Líquido: ${fmt(result.profit)}${kitQty > 1 ? ` (${fmt(result.profit / kitQty)}/un)` : ''} (Margem ${result.margin}%)
 • Taxas & Comissão: ${fmt(result.breakdown.marketplaceFee)}
+• Frete Estimado: ${fmt(result.breakdown.shipping)}
 
 `;
       }
     });
 
     text += `━━━━━━━━━━━━━━━━━━━━━━
-🏆 *Melhor Lucro:* ${insights.bestProfit.marketplace.name} (+R$ ${insights.profitDiff.toFixed(2).replace('.', ',')} por unidade)
+🏆 *Melhor Lucro:* ${insights.bestProfit.marketplace.name} (+R$ ${insights.profitDiff.toFixed(2).replace('.', ',')} no pacote)
 📈 *Maior Margem:* ${insights.bestMargin.marketplace.name} (${insights.bestMargin.result?.margin}%)
 ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -365,10 +377,17 @@ export function MarketplaceComparator() {
                     
                     <div className="pt-4 border-t border-border/50 grid grid-cols-2 gap-4 mt-auto">
                       <div>
-                        <p className="text-xs text-foreground/50 mb-1">Lucro</p>
+                        <p className="text-xs text-foreground/50 mb-1">
+                          Lucro {kitQty > 1 ? `(${kitQty} un)` : ''}
+                        </p>
                         <p className={cn("font-bold text-lg", result.profit > 0 ? "text-success" : "text-danger")}>
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.profit)}
                         </p>
+                        {kitQty > 1 && (
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.profit / kitQty)} / un
+                          </p>
+                        )}
                       </div>
                       <div>
                         <p className="text-xs text-foreground/50 mb-1">Margem</p>

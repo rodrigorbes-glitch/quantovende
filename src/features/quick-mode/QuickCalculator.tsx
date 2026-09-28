@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
 import { productCategories, getCategoryById } from '../../core/categories';
+import { weightTiers, estimateShipping } from '../../core/shipping';
+import { taxRegimes, getTaxRegimeById } from '../../core/taxes';
 import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
 import { Input, cn } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
-import { TrendingUp, AlertTriangle, XCircle, Calculator, Copy, Check, MessageSquare, BookmarkPlus, Package, Printer } from 'lucide-react';
+import { TrendingUp, AlertTriangle, XCircle, Calculator, Copy, Check, MessageSquare, BookmarkPlus, Package, Printer, Boxes, Truck, Sparkles } from 'lucide-react';
 import { TargetPriceSimulator } from '../simulators/TargetPriceSimulator';
 import { DiscountSimulator } from '../simulators/DiscountSimulator';
 import { RateStatusBadge } from '../simulators/RateStatusBadge';
@@ -39,24 +41,41 @@ export function QuickCalculator() {
     setTimeout(() => setSaveSuccess(false), 3500);
   };
 
+  const kitQty = store.kitQuantity || 1;
+  const effectiveCMV = (store.productCost || 0) * kitQty;
+
+  const shippingEstimate = useMemo(() => {
+    return estimateShipping(
+      store.marketplaceId,
+      store.salePrice,
+      store.shippingWeightTier,
+      store.isProMode ? (store.shippingAbsolute || 0) : 0
+    );
+  }, [store.marketplaceId, store.salePrice, store.shippingWeightTier, store.isProMode, store.shippingAbsolute]);
+
+  const activeTaxRegime = useMemo(() => {
+    return getTaxRegimeById(store.taxRegime);
+  }, [store.taxRegime]);
+
   const generateSummaryText = () => {
     if (!result) return '';
     const category = getCategoryById(store.categoryId);
     const condition = mkt.conditions.find(c => c.id === store.marketplaceConditionId) || mkt.conditions[0];
     const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+    const kitText = kitQty > 1 ? ` (${kitQty} unidades)` : '';
 
     return `🏷️ *QuantoVende - Resumo da Precificação*
 📦 *Categoria:* ${category.icon} ${category.name}
 🛒 *Canal:* ${mkt.name} (${condition.label})
 
-💰 *Preço de Venda:* ${fmt(result.salePrice)}
-📦 *Custo do Produto:* ${fmt(result.breakdown.productCost)}
+💰 *Preço de Venda:* ${fmt(result.salePrice)}${kitText}
+📦 *Custo do Produto (CMV):* ${fmt(result.breakdown.productCost)}${kitQty > 1 ? ` (${fmt(store.productCost)}/un)` : ''}
 🏷️ *Comissão & Taxas:* ${fmt(result.breakdown.marketplaceFee)} (${rule.tiers[0]?.percentage || 0}%)
-🚚 *Frete:* ${fmt(result.breakdown.shipping)}
-🧾 *Impostos & Outros:* ${fmt(result.breakdown.taxes + result.breakdown.marketing + result.breakdown.other)}
-
+🚚 *Frete (${shippingEstimate.ruleTag}):* ${fmt(result.breakdown.shipping)}
+🧾 *Impostos (${activeTaxRegime.name}):* ${fmt(result.breakdown.taxes)}
+${result.breakdown.marketing > 0 ? `📢 *Publicidade:* ${fmt(result.breakdown.marketing)}\n` : ''}${result.breakdown.other > 0 ? `⚙️ *Outros Custos:* ${fmt(result.breakdown.other)}\n` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━
-💵 *Lucro Líquido:* ${fmt(result.profit)}
+💵 *Lucro Líquido:* ${fmt(result.profit)}${kitQty > 1 ? ` (${fmt(result.profit / kitQty)}/un)` : ''}
 📈 *Margem Líquida:* ${result.margin}%
 ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -90,18 +109,18 @@ export function QuickCalculator() {
   };
   
   const config: CostsConfig = useMemo(() => ({
-    productCost: store.productCost || 0,
-    shippingAbsolute: store.isProMode ? (store.shippingAbsolute || 0) : 0,
+    productCost: effectiveCMV,
+    shippingAbsolute: shippingEstimate.estimatedCost,
     shippingPercentage: 0,
     commissionTiers: rule.tiers,
     customFixedFee: store.isProMode ? store.customFixedFee : null,
     customCommissionPercentage: store.isProMode ? store.customCommissionPercentage : null,
-    taxesPercentage: store.isProMode ? (store.taxesPercentage || 0) : 0,
+    taxesPercentage: store.taxesPercentage || 0,
     marketingAbsolute: store.isProMode ? (store.marketingAbsolute || 0) : 0,
     marketingPercentage: 0,
     otherAbsolute: store.isProMode ? (store.otherAbsolute || 0) : 0,
     otherPercentage: 0,
-  }), [store, rule]);
+  }), [effectiveCMV, shippingEstimate.estimatedCost, rule.tiers, store.isProMode, store.customFixedFee, store.customCommissionPercentage, store.taxesPercentage, store.marketingAbsolute, store.otherAbsolute]);
 
   const result = useMemo(() => {
     if (store.salePrice > 0) {
@@ -123,20 +142,28 @@ export function QuickCalculator() {
           conditions: m.conditions,
           profit: null as number | null,
           margin: null as number | null,
+          unitProfit: null as number | null,
         };
       }
 
+      const chShipping = estimateShipping(
+        m.id,
+        store.salePrice,
+        store.shippingWeightTier,
+        store.isProMode ? (store.shippingAbsolute || 0) : 0
+      );
+
       const cfg: CostsConfig = {
-        productCost: store.productCost,
-        shippingAbsolute: store.isProMode ? store.shippingAbsolute : 0,
+        productCost: effectiveCMV,
+        shippingAbsolute: chShipping.estimatedCost,
         shippingPercentage: 0,
         commissionTiers: r.tiers,
         customFixedFee: store.isProMode ? store.customFixedFee : null,
         customCommissionPercentage: store.isProMode ? store.customCommissionPercentage : null,
-        taxesPercentage: store.isProMode ? store.taxesPercentage : 0,
-        marketingAbsolute: store.isProMode ? store.marketingAbsolute : 0,
+        taxesPercentage: store.taxesPercentage || 0,
+        marketingAbsolute: store.isProMode ? (store.marketingAbsolute || 0) : 0,
         marketingPercentage: 0,
-        otherAbsolute: store.isProMode ? store.otherAbsolute : 0,
+        otherAbsolute: store.isProMode ? (store.otherAbsolute || 0) : 0,
         otherPercentage: 0,
       };
 
@@ -148,9 +175,10 @@ export function QuickCalculator() {
         conditions: m.conditions,
         profit: res.profit,
         margin: res.margin,
+        unitProfit: kitQty > 1 ? res.profit / kitQty : res.profit,
       };
     });
-  }, [store.productCost, store.salePrice, store.marketplaceId, store.marketplaceConditionId, store.categoryId, store.officialRates, store.isProMode, store.shippingAbsolute, store.customFixedFee, store.customCommissionPercentage, store.taxesPercentage, store.marketingAbsolute, store.otherAbsolute]);
+  }, [store.productCost, effectiveCMV, kitQty, store.salePrice, store.marketplaceId, store.marketplaceConditionId, store.shippingWeightTier, store.categoryId, store.officialRates, store.isProMode, store.shippingAbsolute, store.customFixedFee, store.customCommissionPercentage, store.taxesPercentage, store.marketingAbsolute, store.otherAbsolute]);
 
   const maxChannelProfit = useMemo(() => {
     const valid = channelPreviews.filter(c => c.profit !== null && c.profit > 0);
@@ -225,14 +253,56 @@ export function QuickCalculator() {
         <p className="text-foreground/70 text-sm">Descubra rapidamente quanto sobra no seu bolso.</p>
         
         <div className="space-y-4">
-          <Input 
-            label="Custo do Produto (R$)" 
-            type="number" 
-            placeholder="0,00"
-            prefix="R$"
-            value={store.productCost || ''}
-            onChange={e => store.setProductCost(parseFloat(e.target.value) || 0)}
-          />
+          <div>
+            <Input 
+              label="Custo do Produto (R$)" 
+              type="number" 
+              placeholder="0,00"
+              prefix="R$"
+              value={store.productCost || ''}
+              onChange={e => store.setProductCost(parseFloat(e.target.value) || 0)}
+            />
+
+            {/* Multiplicador de Lucro: Seletor de Kits / Combos */}
+            <div className="mt-2 p-2.5 rounded-xl bg-card border border-border/80 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                  <Boxes className="w-3.5 h-3.5 text-primary" />
+                  <span>Venda em Kit / Combo:</span>
+                </span>
+                {kitQty > 1 && (
+                  <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    CMV Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(effectiveCMV)}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-5 gap-1 pt-0.5">
+                {[1, 2, 3, 4, 5].map(qty => (
+                  <button
+                    key={qty}
+                    type="button"
+                    onClick={() => store.setKitQuantity(qty)}
+                    className={cn(
+                      "py-1.5 rounded-lg text-xs font-semibold transition-all border text-center",
+                      store.kitQuantity === qty
+                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                        : "bg-background hover:bg-muted/50 border-border text-foreground/70"
+                    )}
+                  >
+                    {qty === 1 ? '1 un' : `${qty} un`}
+                  </button>
+                ))}
+              </div>
+
+              {kitQty > 1 && (
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 leading-tight flex items-center gap-1">
+                  <span>💡</span>
+                  <span>Kit com {kitQty} unidades. A taxa fixa e o frete são cobrados uma única vez no mesmo pacote!</span>
+                </p>
+              )}
+            </div>
+          </div>
 
           <Input 
             label="Preço de Venda (R$)" 
@@ -251,7 +321,7 @@ export function QuickCalculator() {
               </span>
             </label>
             <select 
-              className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               value={store.categoryId}
               onChange={e => store.setCategoryId(e.target.value)}
             >
@@ -264,6 +334,100 @@ export function QuickCalculator() {
             <span className="text-[11px] text-foreground/60">
               {getCategoryById(store.categoryId).description}
             </span>
+          </div>
+
+          {/* Peso e Faixa de Frete Automática */}
+          <div className="space-y-2 p-3 rounded-xl bg-card border border-border/80">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                <Truck className="w-3.5 h-3.5 text-primary" />
+                <span>Peso Estimado (Frete Automático)</span>
+              </label>
+              <span className="text-[10px] text-foreground/50">Tabelas Oficiais</span>
+            </div>
+
+            <select
+              className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              value={store.shippingWeightTier}
+              onChange={e => store.setShippingWeightTier(e.target.value)}
+            >
+              {weightTiers.map(tier => (
+                <option key={tier.id} value={tier.id}>
+                  {tier.name} ({tier.weightRange}) - {tier.description}
+                </option>
+              ))}
+            </select>
+
+            <div className="flex items-center justify-between text-[11px] bg-muted/40 border border-border/60 px-2.5 py-1.5 rounded-lg text-foreground/70">
+              <span className="flex items-center gap-1.5 font-medium truncate">
+                <span>📦</span>
+                <span className="truncate">{shippingEstimate.ruleTag}</span>
+              </span>
+              <span className="font-bold text-foreground shrink-0 ml-2">
+                {store.isProMode && store.shippingAbsolute > 0 ? (
+                  <span title="Valor manual informado no modo PRO">
+                    R$ {store.shippingAbsolute.toFixed(2)} (manual)
+                  </span>
+                ) : (
+                  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(shippingEstimate.estimatedCost)
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* Regime Tributário (Impostos s/ Venda) */}
+          <div className="space-y-2 p-3 rounded-xl bg-card border border-border/80">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                <span>Regime Tributário (Imposto s/ Venda)</span>
+              </label>
+              <span className="text-[11px] font-bold text-primary">
+                {activeTaxRegime.name} ({store.taxesPercentage}%)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
+              {taxRegimes.map(regime => {
+                const isSelected = store.taxRegime === regime.id;
+                return (
+                  <button
+                    key={regime.id}
+                    type="button"
+                    onClick={() => store.setTaxRegime(regime.id)}
+                    className={cn(
+                      "py-1.5 px-1 rounded-lg text-[11px] font-semibold border transition-all flex flex-col items-center justify-center gap-0.5 text-center",
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                        : "bg-background hover:bg-muted/50 border-border text-foreground/70"
+                    )}
+                    title={regime.description}
+                  >
+                    <span className="truncate w-full text-[10px]">{regime.name.split(' ')[0]}</span>
+                    <span className={cn("text-[9px] px-1 rounded font-mono", isSelected ? "bg-black/20 text-white" : "bg-muted text-foreground/60")}>
+                      {regime.badge}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {store.taxRegime === 'custom' && (
+              <div className="pt-1">
+                <Input
+                  label="Alíquota Personalizada (%)"
+                  type="number"
+                  suffix="%"
+                  placeholder="0,00"
+                  value={store.taxesPercentage || ''}
+                  onChange={e => store.setTaxRegime('custom', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            )}
+
+            <p className="text-[10px] text-foreground/50 leading-tight">
+              {activeTaxRegime.description} ({activeTaxRegime.revenueLimit})
+            </p>
           </div>
         </div>
 
@@ -430,13 +594,20 @@ export function QuickCalculator() {
                           </div>
 
                           {tab.profit !== null ? (
-                            <div className="mt-2 flex items-baseline gap-1.5">
-                              <span className={`text-base font-black ${tab.profit > 0 ? 'text-success' : 'text-danger'}`}>
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tab.profit)}
-                              </span>
-                              <span className="text-[11px] font-medium text-foreground/50">
-                                ({tab.margin}%)
-                              </span>
+                            <div className="mt-2 flex flex-col">
+                              <div className="flex items-baseline gap-1.5">
+                                <span className={`text-base font-black ${tab.profit > 0 ? 'text-success' : 'text-danger'}`}>
+                                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tab.profit)}
+                                </span>
+                                <span className="text-[11px] font-medium text-foreground/50">
+                                  ({tab.margin}%)
+                                </span>
+                              </div>
+                              {kitQty > 1 && tab.unitProfit !== null && (
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tab.unitProfit)} / un
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <span className="text-[11px] text-foreground/40 mt-1">Ver projeção</span>
@@ -453,12 +624,27 @@ export function QuickCalculator() {
                     <p className="text-3xl sm:text-4xl font-bold text-foreground break-words">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.salePrice)}
                     </p>
+                    {kitQty > 1 && (
+                      <p className="text-xs text-foreground/60 mt-1">
+                        Equivale a {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.salePrice / kitQty)} por unidade
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground/60 mb-1">Lucro Líquido Estimado</p>
+                    <p className="text-sm font-medium text-foreground/60 mb-1">
+                      Lucro Líquido {kitQty > 1 ? `(Kit ${kitQty} un)` : 'Estimado'}
+                    </p>
                     <p className={cn("text-3xl sm:text-4xl font-bold break-words", result.profit > 0 ? "text-success" : "text-danger")}>
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.profit)}
                     </p>
+                    {kitQty > 1 && (
+                      <div className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
+                        <span>💎</span>
+                        <span>
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.profit / kitQty)} por unidade
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -611,16 +797,10 @@ export function QuickCalculator() {
                         <div className="space-y-1">
                           <p className="font-bold text-xs">Frete Grátis Obrigatório Ativo (&ge; R$ 79,00):</p>
                           <p className="opacity-90 leading-relaxed">
-                            A taxa fixa de R$ 6,00 foi eliminada, mas o frete do Mercado Envios é descontado do seu repasse.
-                            {store.shippingAbsolute === 0 ? (
-                              <span className="block mt-1 text-amber-700 dark:text-amber-300 font-semibold">
-                                Dica: Abra as "Configurações Avançadas (PRO)" e informe o frete médio para ver a margem real.
-                              </span>
-                            ) : (
-                              <span className="block mt-1 text-emerald-700 dark:text-emerald-400 font-semibold">
-                                Custo de frete informado (R$ {store.shippingAbsolute.toFixed(2)}) já está sendo deduzido do seu lucro.
-                              </span>
-                            )}
+                            A taxa fixa de R$ 6,00 foi eliminada. Pela regra oficial do Mercado Livre, o vendedor é obrigado a bancar o Mercado Envios.
+                            <span className="block mt-1 text-emerald-700 dark:text-emerald-400 font-semibold">
+                              Faixa selecionada: {weightTiers.find(w => w.id === store.shippingWeightTier)?.name} — O frete oficial de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(shippingEstimate.estimatedCost)} já está automaticamente calculado e deduzido do seu lucro!
+                            </span>
                           </p>
                         </div>
                       </div>
@@ -631,7 +811,16 @@ export function QuickCalculator() {
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
-                    <span className="text-foreground/70">Produto</span>
+                    <div className="flex flex-col">
+                      <span className="text-foreground/70">
+                        Custo do Produto (CMV) {kitQty > 1 ? `• Kit ${kitQty} un` : ''}
+                      </span>
+                      {kitQty > 1 && (
+                        <span className="text-[10px] text-foreground/50">
+                          {kitQty} unidades x {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(store.productCost)}
+                        </span>
+                      )}
+                    </div>
                     <span className="font-medium text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.breakdown.productCost)}</span>
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
@@ -650,7 +839,7 @@ export function QuickCalculator() {
                         )}
                       </div>
                       <span className="text-[10px] text-foreground/50">
-                        R$ {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(result.breakdown.marketplaceCommissionExtracted)} comissão + R$ {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(result.breakdown.marketplaceFixedExtracted)} fixo
+                        R$ {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(result.breakdown.marketplaceCommissionExtracted)} comissão + R$ {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(result.breakdown.marketplaceFixedExtracted)} fixo {kitQty > 1 ? '(taxa única para o kit)' : ''}
                       </span>
                     </div>
                     <span className="font-medium text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.breakdown.marketplaceFee)}</span>
@@ -658,25 +847,37 @@ export function QuickCalculator() {
                   
                   {result.breakdown.taxes > 0 ? (
                     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
-                      <span className="text-foreground/70">Impostos ({config.taxesPercentage}%)</span>
+                      <div className="flex flex-col">
+                        <span className="text-foreground/70">Impostos ({activeTaxRegime.name})</span>
+                        <span className="text-[10px] text-foreground/50">Alíquota estimada de {config.taxesPercentage}% sobre a venda</span>
+                      </div>
                       <span className="font-medium text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.breakdown.taxes)}</span>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50 opacity-50">
-                      <span className="text-foreground/70">Impostos</span>
-                      <span className="font-medium text-foreground/50">Não informado (R$ 0)</span>
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50 opacity-60">
+                      <div className="flex flex-col">
+                        <span className="text-foreground/70">Impostos ({activeTaxRegime.name})</span>
+                        <span className="text-[10px] text-foreground/50">Isento por venda (DAS fixo mensal do MEI)</span>
+                      </div>
+                      <span className="font-medium text-foreground/70">R$ 0,00</span>
                     </div>
                   )}
 
                   {result.breakdown.shipping > 0 ? (
                     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50">
-                      <span className="text-foreground/70">Frete / Envio</span>
+                      <div className="flex flex-col">
+                        <span className="text-foreground/70">Frete / Envio Logístico</span>
+                        <span className="text-[10px] text-foreground/50">{shippingEstimate.ruleTag} {kitQty > 1 ? '• Pacote consolidado' : ''}</span>
+                      </div>
                       <span className="font-medium text-foreground">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.breakdown.shipping)}</span>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50 opacity-50">
-                      <span className="text-foreground/70">Frete / Envio</span>
-                      <span className="font-medium text-foreground/50">Não informado (R$ 0)</span>
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm py-2 border-b border-border/50 opacity-60">
+                      <div className="flex flex-col">
+                        <span className="text-foreground/70">Frete / Envio Logístico</span>
+                        <span className="text-[10px] text-foreground/50">{shippingEstimate.ruleTag}</span>
+                      </div>
+                      <span className="font-medium text-foreground/70">R$ 0,00</span>
                     </div>
                   )}
 

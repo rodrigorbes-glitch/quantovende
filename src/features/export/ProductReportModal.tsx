@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { marketplaces } from '../../core/marketplaces/rules';
 import { getCategoryById } from '../../core/categories';
+import { weightTiers, estimateShipping } from '../../core/shipping';
+import { getTaxRegimeById } from '../../core/taxes';
 import { calculateBreakEvenPrice, type CostsConfig } from '../../core/math/pricing';
 import { Button } from '../../ui/components/Button';
 import { Logo } from '../../ui/components/Logo';
@@ -22,19 +24,33 @@ export function ProductReportModal({ isOpen, onClose, result, rule }: ProductRep
   const category = getCategoryById(store.categoryId);
   const condition = mkt.conditions.find(c => c.id === store.marketplaceConditionId) || mkt.conditions[0];
 
+  const kitQty = store.kitQuantity || 1;
+  const effectiveCMV = (store.productCost || 0) * kitQty;
+  const weightObj = weightTiers.find(w => w.id === store.shippingWeightTier) || weightTiers[0];
+  const taxRegimeObj = getTaxRegimeById(store.taxRegime);
+
+  const shippingEstimate = useMemo(() => {
+    return estimateShipping(
+      store.marketplaceId,
+      store.salePrice,
+      store.shippingWeightTier,
+      store.isProMode ? (store.shippingAbsolute || 0) : 0
+    );
+  }, [store.marketplaceId, store.salePrice, store.shippingWeightTier, store.isProMode, store.shippingAbsolute]);
+
   const config: CostsConfig = useMemo(() => ({
-    productCost: store.productCost || 0,
-    shippingAbsolute: store.isProMode ? (store.shippingAbsolute || 0) : 0,
+    productCost: effectiveCMV,
+    shippingAbsolute: shippingEstimate.estimatedCost,
     shippingPercentage: 0,
     commissionTiers: rule.tiers,
     customFixedFee: store.isProMode ? store.customFixedFee : null,
     customCommissionPercentage: store.isProMode ? store.customCommissionPercentage : null,
-    taxesPercentage: store.isProMode ? (store.taxesPercentage || 0) : 0,
+    taxesPercentage: store.taxesPercentage || 0,
     marketingAbsolute: store.isProMode ? (store.marketingAbsolute || 0) : 0,
     marketingPercentage: 0,
     otherAbsolute: store.isProMode ? (store.otherAbsolute || 0) : 0,
     otherPercentage: 0,
-  }), [store, rule]);
+  }), [effectiveCMV, shippingEstimate.estimatedCost, rule.tiers, store.isProMode, store.customFixedFee, store.customCommissionPercentage, store.taxesPercentage, store.marketingAbsolute, store.otherAbsolute]);
 
   const breakEvenPrice = useMemo(() => calculateBreakEvenPrice(config), [config]);
 
@@ -151,25 +167,33 @@ export function ProductReportModal({ isOpen, onClose, result, rule }: ProductRep
           ) : null}
 
           {/* Context Banner */}
-          <div className="my-5 p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+          <div className="my-5 p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div>
               <span className="text-slate-500 block text-[11px]">Marketplace / Canal</span>
               <span className="font-bold text-slate-800 text-sm">{mkt.name}</span>
               <span className="text-[11px] text-slate-600 block">{condition.label}</span>
             </div>
             <div>
-              <span className="text-slate-500 block text-[11px]">Categoria</span>
+              <span className="text-slate-500 block text-[11px]">Categoria & Taxa</span>
               <span className="font-bold text-slate-800 text-sm flex items-center gap-1">
                 <span>{category.icon}</span>
                 <span>{category.name}</span>
               </span>
-            </div>
-            <div className="col-span-2 sm:col-span-1">
-              <span className="text-slate-500 block text-[11px]">Taxa da Categoria</span>
-              <span className="font-bold text-slate-800 text-sm">
-                {rule.tiers[0]?.percentage || 0}%
-                {rule.tiers[0]?.fixedFee ? ` + R$ ${rule.tiers[0].fixedFee.toFixed(2)}` : ''}
+              <span className="text-[11px] text-slate-600 block">
+                {rule.tiers[0]?.percentage || 0}% {rule.tiers[0]?.fixedFee ? `+ R$ ${rule.tiers[0].fixedFee.toFixed(2)}` : ''}
               </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[11px]">Formato & Peso</span>
+              <span className="font-bold text-slate-800 text-sm">
+                {kitQty > 1 ? `Kit com ${kitQty} un` : 'Venda Avulsa (1 un)'}
+              </span>
+              <span className="text-[11px] text-slate-600 block">{weightObj.name}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[11px]">Regime Tributário</span>
+              <span className="font-bold text-slate-800 text-sm">{taxRegimeObj.name}</span>
+              <span className="text-[11px] text-slate-600 block">Alíquota: {store.taxesPercentage}%</span>
             </div>
           </div>
 
@@ -178,17 +202,25 @@ export function ProductReportModal({ isOpen, onClose, result, rule }: ProductRep
             <div className="p-3 sm:p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
               <span className="text-[11px] sm:text-xs text-slate-500 font-medium block mb-0.5">Preço de Venda</span>
               <span className="text-lg sm:text-2xl font-black text-slate-900">{fmt(result.salePrice)}</span>
+              {kitQty > 1 && (
+                <span className="text-[10px] text-slate-500 block mt-0.5">{fmt(result.salePrice / kitQty)} / un</span>
+              )}
             </div>
 
             <div className="p-3 sm:p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
               <span className="text-[11px] sm:text-xs text-slate-500 font-medium block mb-0.5">Custo (CMV)</span>
               <span className="text-lg sm:text-2xl font-black text-slate-700">{fmt(result.breakdown.productCost)}</span>
+              {kitQty > 1 && (
+                <span className="text-[10px] text-slate-500 block mt-0.5">{kitQty}x {fmt(store.productCost)}</span>
+              )}
             </div>
 
             <div className="p-3 sm:p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
               <span className="text-[11px] sm:text-xs text-emerald-800 font-medium block mb-0.5">Lucro Líquido Real</span>
               <span className="text-lg sm:text-2xl font-black text-emerald-700">{fmt(result.profit)}</span>
-              <span className="text-[11px] font-bold text-emerald-700 block mt-0.5">Margem: {result.margin}%</span>
+              <span className="text-[11px] font-bold text-emerald-700 block mt-0.5">
+                Margem: {result.margin}% {kitQty > 1 ? `(${fmt(result.profit / kitQty)}/un)` : ''}
+              </span>
             </div>
           </div>
 
@@ -201,7 +233,9 @@ export function ProductReportModal({ isOpen, onClose, result, rule }: ProductRep
             <table className="w-full text-xs">
               <tbody className="divide-y divide-slate-100">
                 <tr>
-                  <td className="py-2 text-slate-600">Custo da Mercadoria (CMV)</td>
+                  <td className="py-2 text-slate-600">
+                    Custo da Mercadoria (CMV) {kitQty > 1 ? `(Kit ${kitQty} un x ${fmt(store.productCost)})` : ''}
+                  </td>
                   <td className="py-2 text-right font-medium text-slate-900">{fmt(result.breakdown.productCost)}</td>
                 </tr>
                 <tr>
@@ -210,18 +244,18 @@ export function ProductReportModal({ isOpen, onClose, result, rule }: ProductRep
                 </tr>
                 {result.breakdown.marketplaceFixedExtracted > 0 && (
                   <tr>
-                    <td className="py-2 text-slate-600">Tarifa Fixa Operacional</td>
+                    <td className="py-2 text-slate-600">Tarifa Fixa Operacional {kitQty > 1 ? '(pacote único)' : ''}</td>
                     <td className="py-2 text-right font-medium text-red-600">- {fmt(result.breakdown.marketplaceFixedExtracted)}</td>
                   </tr>
                 )}
                 <tr>
-                  <td className="py-2 text-slate-600">Impostos ({store.taxesPercentage || 0}%)</td>
+                  <td className="py-2 text-slate-600">Impostos ({taxRegimeObj.name} - {store.taxesPercentage || 0}%)</td>
                   <td className="py-2 text-right font-medium text-slate-900">
-                    {result.breakdown.taxes > 0 ? `- ${fmt(result.breakdown.taxes)}` : 'R$ 0,00'}
+                    {result.breakdown.taxes > 0 ? `- ${fmt(result.breakdown.taxes)}` : 'R$ 0,00 (Isento)'}
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-2 text-slate-600">Frete / Envio</td>
+                  <td className="py-2 text-slate-600">Frete / Envio Logístico ({shippingEstimate.ruleTag})</td>
                   <td className="py-2 text-right font-medium text-slate-900">
                     {result.breakdown.shipping > 0 ? `- ${fmt(result.breakdown.shipping)}` : 'R$ 0,00'}
                   </td>
