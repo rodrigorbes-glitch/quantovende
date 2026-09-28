@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { estimateShipping, weightTiers } from './index';
 
 describe('Freight Intelligence Engine', () => {
+  it('Deve listar as faixas de peso oficiais pré-configuradas', () => {
+    expect(weightTiers.length).toBeGreaterThan(0);
+    expect(weightTiers.some(w => w.id === 'up_to_300g')).toBe(true);
+  });
   it('Mercado Livre: < R$ 79 deve cobrar R$ 0 de frete do vendedor (comprador paga)', () => {
     const est = estimateShipping('mercadolivre', 50, 'up_to_300g');
     expect(est.estimatedCost).toBe(0);
