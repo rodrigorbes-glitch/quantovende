@@ -29,6 +29,11 @@ export function QuickCalculator() {
 
   const handleConfirmSave = () => {
     if (!result) return;
+    if (!store.isProUser && (store.savedProducts?.length || 0) >= 3) {
+      setIsSavingProduct(false);
+      store.setProModalOpen(true);
+      return;
+    }
     const condition = mkt.conditions.find(c => c.id === store.marketplaceConditionId) || mkt.conditions[0];
     store.saveCurrentProduct(productNameInput, {
       profit: result.profit,

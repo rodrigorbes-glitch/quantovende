@@ -3,7 +3,7 @@ import { usePricingStore } from '../../store/usePricingStore';
 import { getCategoryById } from '../../core/categories';
 import { Button } from '../../ui/components/Button';
 import { Logo } from '../../ui/components/Logo';
-import { X, Trash2, ArrowUpRight, Search, Package, Printer } from 'lucide-react';
+import { X, Trash2, ArrowUpRight, Search, Package, Printer, Sparkles } from 'lucide-react';
 
 interface SavedProductsModalProps {
   isOpen: boolean;
@@ -107,6 +107,26 @@ export function SavedProductsModal({ isOpen, onClose }: SavedProductsModalProps)
                 className="w-full h-10 pl-9 pr-4 rounded-xl border border-input bg-background text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               />
             </div>
+          </div>
+        )}
+
+        {/* Free Plan / Pro Limit Alert */}
+        {!store.isProUser && (
+          <div className="mx-6 mt-4 p-3.5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs print:hidden">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+              <span className="text-foreground/90">
+                Plano Gratuito: <strong>{store.savedProducts?.length || 0}/3 produtos</strong> salvos. Desbloqueie o catálogo ilimitado no PRO.
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                store.setProModalOpen(true);
+              }}
+              className="text-xs font-bold text-amber-950 bg-amber-400 hover:bg-amber-300 px-3.5 py-1.5 rounded-xl shrink-0 transition-colors shadow-sm"
+            >
+              Conhecer o PRO
+            </button>
           </div>
         )}
 

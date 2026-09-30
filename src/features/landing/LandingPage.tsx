@@ -1,7 +1,12 @@
+import { useState } from 'react';
 import { ArrowRight, PieChart, TrendingUp, ShieldCheck, ArrowRightLeft, Sparkles, MessageSquare, Package, CheckCircle2 } from 'lucide-react';
 import { Logo } from '../../ui/components/Logo';
+import { InstallPwaButton, InstallPwaBanner } from '../../ui/components/InstallPwa';
+import { ProPlansModal } from '../subscription/ProPlansModal';
 
 export function LandingPage() {
+  const [isProOpen, setIsProOpen] = useState(false);
+
   const navigateToCalculator = () => {
     window.history.pushState({}, '', '/calculadora');
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -9,17 +14,28 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
+      <InstallPwaBanner />
+      <ProPlansModal isOpen={isProOpen} onClose={() => setIsProOpen(false)} />
+
       {/* HEADER */}
       <header className="py-5 px-6 md:px-12 flex justify-between items-center border-b border-border/40 bg-card/50 backdrop-blur-sm sticky top-0 z-40">
         <div className="cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <Logo size="md" />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={() => setIsProOpen(true)}
+            className="text-xs sm:text-sm font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-3.5 py-2 sm:py-2.5 rounded-full shadow-sm flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5 fill-amber-950" />
+            <span>Planos PRO</span>
+          </button>
+          <InstallPwaButton />
           <button 
             onClick={navigateToCalculator}
-            className="text-sm font-semibold bg-primary text-primary-foreground px-5 py-2.5 rounded-full hover:bg-primary/90 transition-all shadow-sm hover:shadow"
+            className="text-xs sm:text-sm font-semibold bg-primary text-primary-foreground px-4 sm:px-5 py-2 sm:py-2.5 rounded-full hover:bg-primary/90 transition-all shadow-sm hover:shadow"
           >
-            Acessar Calculadora Grátis
+            Acessar Calculadora
           </button>
         </div>
       </header>

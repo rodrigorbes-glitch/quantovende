@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Package } from 'lucide-react';
+import { Package, Sparkles } from 'lucide-react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { OnboardingModal } from '../../features/onboarding/OnboardingModal';
 import { SavedProductsModal } from '../../features/saved-products/SavedProductsModal';
+import { ProPlansModal } from '../../features/subscription/ProPlansModal';
 import { Logo } from '../components/Logo';
+import { InstallPwaButton, InstallPwaBanner } from '../components/InstallPwa';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -19,6 +21,8 @@ export function MainLayout({ children }: MainLayoutProps) {
     <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground flex flex-col">
       <OnboardingModal forceOpen={forceOnboarding} onClose={() => setForceOnboarding(false)} />
       <SavedProductsModal isOpen={savedProductsOpen} onClose={() => setSavedProductsOpen(false)} />
+      <ProPlansModal isOpen={store.isProModalOpen} onClose={() => store.setProModalOpen(false)} />
+      <InstallPwaBanner />
       
       <header className="border-b border-border/40 bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -26,6 +30,14 @@ export function MainLayout({ children }: MainLayoutProps) {
             <Logo size="md" />
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => store.setProModalOpen(true)}
+              className="text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 fill-amber-950" />
+              <span>{store.isProUser ? 'PRO Ativo' : 'Seja PRO'}</span>
+            </button>
+            <InstallPwaButton />
             <button
               onClick={() => setSavedProductsOpen(true)}
               className="text-xs font-semibold text-primary hover:text-primary/90 transition-colors px-2.5 py-1.5 rounded-lg bg-primary/10 flex items-center gap-1.5"

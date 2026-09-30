@@ -77,6 +77,12 @@ interface AppState {
   hasSeenOnboarding: boolean;
   setHasSeenOnboarding: (v: boolean) => void;
 
+  // Assinatura PRO
+  isProModalOpen: boolean;
+  setProModalOpen: (v: boolean) => void;
+  isProUser: boolean;
+  setIsProUser: (v: boolean) => void;
+
   // Ações
   setProductCost: (v: number) => void;
   setSalePrice: (v: number) => void;
@@ -124,6 +130,8 @@ const initialState = {
   comparatorPromoEnd: '',
   savedProducts: [] as SavedProduct[],
   officialRates: {},
+  isProModalOpen: false,
+  isProUser: false,
 };
 
 export const usePricingStore = create<AppState>()(
@@ -132,6 +140,8 @@ export const usePricingStore = create<AppState>()(
       ...initialState,
       hasSeenOnboarding: false,
       setHasSeenOnboarding: (v) => set({ hasSeenOnboarding: v }),
+      setProModalOpen: (v) => set({ isProModalOpen: v }),
+      setIsProUser: (v) => set({ isProUser: v }),
       setProductCost: (v) => set({ productCost: v }),
       setSalePrice: (v) => set({ salePrice: v }),
       setMarketplace: (id, conditionId) => set({ 
@@ -236,12 +246,14 @@ export const usePricingStore = create<AppState>()(
         hasSeenOnboarding: state.hasSeenOnboarding,
         savedProducts: state.savedProducts,
         officialRates: state.officialRates,
+        isProUser: state.isProUser,
       })),
       clearData: () => set((state) => ({
         ...initialState,
         hasSeenOnboarding: state.hasSeenOnboarding,
         savedProducts: state.savedProducts,
         officialRates: state.officialRates,
+        isProUser: state.isProUser,
       })),
     }),
     {
