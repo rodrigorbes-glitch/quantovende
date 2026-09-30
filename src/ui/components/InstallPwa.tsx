@@ -10,11 +10,23 @@ export function usePwa() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIos, setIsIos] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
   const [showIosGuide, setShowIosGuide] = useState(false);
 
   useEffect(() => {
-    // Verifica se já está rodando como PWA (tela cheia/standalone)
+    // Detecta se e dispositivo movel ou tela compacta
+    const checkMobile = () => {
+      const isMobileDevice = 
+        window.innerWidth < 768 || 
+        /android|iphone|ipad|ipod|mobile/i.test(window.navigator.userAgent);
+      setIsMobile(isMobileDevice);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    // Verifica se ja esta rodando como PWA (tela cheia/standalone)
     const isStandaloneMode = 
       window.matchMedia('(display-mode: standalone)').matches ||
       ('standalone' in window.navigator && Boolean((window.navigator as unknown as { standalone: boolean }).standalone));
@@ -26,11 +38,11 @@ export function usePwa() {
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIos(isIosDevice);
 
-    // Verifica se o usuário já dispensou o banner nesta sessão
+    // Verifica se o usuario ja dispensou o banner nesta sessao
     const dismissed = sessionStorage.getItem('pwa_prompt_dismissed') === 'true';
     setIsDismissed(dismissed);
 
-    // Captura o evento nativo de instalação do Chrome / Edge / Android
+    // Captura o evento nativo de instalacao do Chrome / Edge / Android
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -40,6 +52,7 @@ export function usePwa() {
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('resize', checkMobile);
     };
   }, []);
 
@@ -52,9 +65,6 @@ export function usePwa() {
       }
     } else if (isIos) {
       setShowIosGuide(true);
-    } else {
-      // Caso navegador desktop não suporte o prompt automático
-      alert('Para instalar o QuantoVende, clique no menu do seu navegador (três pontinhos no topo) e selecione "Instalar QuantoVende" ou "Adicionar à Tela de Início".');
     }
   };
 
@@ -65,7 +75,8 @@ export function usePwa() {
 
   return {
     isStandalone,
-    canInstall: !isStandalone && (Boolean(deferredPrompt) || isIos),
+    isMobile,
+    canInstall: !isStandalone && isMobile && (Boolean(deferredPrompt) || isIos),
     triggerInstall,
     dismissBanner,
     isDismissed,
@@ -75,19 +86,19 @@ export function usePwa() {
 }
 
 /**
- * Botão discreto para cabeçalhos / menus
+ * Botao discreto para cabeçalhos / menus exclusivo para Mobile
  */
 export function InstallPwaButton({ className = '' }: { className?: string }) {
-  const { isStandalone, triggerInstall, showIosGuide, setShowIosGuide } = usePwa();
+  const { isStandalone, isMobile, triggerInstall, showIosGuide, setShowIosGuide } = usePwa();
 
-  if (isStandalone) return null;
+  if (isStandalone || !isMobile) return null;
 
   return (
     <>
       <button
         onClick={triggerInstall}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400 transition-all border border-emerald-500/20 shadow-sm ${className}`}
-        title="Instalar QuantoVende no celular ou computador"
+        className={`inline-flex md:hidden items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400 transition-all border border-emerald-500/20 shadow-sm ${className}`}
+        title="Instalar QuantoVende no celular"
       >
         <Smartphone className="w-3.5 h-3.5" />
         <span>Instalar App</span>
@@ -99,7 +110,7 @@ export function InstallPwaButton({ className = '' }: { className?: string }) {
 }
 
 /**
- * Banner flutuante inteligente na parte inferior para mobile
+ * Banner flutuante inteligente na parte inferior apenas para mobile
  */
 export function InstallPwaBanner() {
   const { isStandalone, canInstall, isDismissed, triggerInstall, dismissBanner, showIosGuide, setShowIosGuide } = usePwa();
@@ -110,7 +121,7 @@ export function InstallPwaBanner() {
 
   return (
     <>
-      <aside aria-label="Instalar aplicativo" className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-6 md:max-w-md animate-in slide-in-from-bottom-5 duration-300">
+      <aside aria-label="Instalar aplicativo" className="fixed bottom-4 left-4 right-4 z-50 md:hidden animate-in slide-in-from-bottom-5 duration-300">
         <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-slate-700/80 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0 shadow-md">
