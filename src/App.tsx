@@ -17,6 +17,14 @@ export default function App() {
     };
     window.addEventListener('popstate', onLocationChange);
 
+    // Se a URL tiver parametros de simulacao (?cost=... ou ?price=...), redireciona para a calculadora
+    if (window.location.search && (window.location.search.includes('cost=') || window.location.search.includes('price='))) {
+      if (window.location.pathname !== '/calculadora') {
+        window.history.replaceState({}, '', `/calculadora${window.location.search}`);
+        setCurrentPath('/calculadora');
+      }
+    }
+
     // Sync official rates once when app loads
     import('./store/usePricingStore').then(m => m.usePricingStore.getState().syncOfficialRates());
 

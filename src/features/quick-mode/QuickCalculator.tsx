@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { marketplaces, getCommissionRule } from '../../core/marketplaces/rules';
 import { productCategories, getCategoryById } from '../../core/categories';
@@ -8,18 +8,20 @@ import { calculatePricing, type CostsConfig } from '../../core/math/pricing';
 import { Input, cn } from '../../ui/components/Input';
 import { Button } from '../../ui/components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/components/Card';
-import { TrendingUp, AlertTriangle, XCircle, Calculator, Copy, Check, MessageSquare, BookmarkPlus, Package, Printer, Boxes, Truck, Sparkles } from 'lucide-react';
+import { TrendingUp, AlertTriangle, XCircle, Calculator, Check, MessageSquare, BookmarkPlus, Package, Printer, Boxes, Truck, Sparkles, Share2 } from 'lucide-react';
 import { TargetPriceSimulator } from '../simulators/TargetPriceSimulator';
 import { DiscountSimulator } from '../simulators/DiscountSimulator';
 import { RateStatusBadge } from '../simulators/RateStatusBadge';
 import { SavedProductsModal } from '../saved-products/SavedProductsModal';
 import { ProductReportModal } from '../export/ProductReportModal';
+import { ShareSimulationModal } from './ShareSimulationModal';
 
 export function QuickCalculator() {
   const store = usePricingStore();
-  const [copied, setCopied] = useState(false);
   const [savedModalOpen, setSavedModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [isSharedFromUrl, setIsSharedFromUrl] = useState(false);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [productNameInput, setProductNameInput] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -62,6 +64,46 @@ export function QuickCalculator() {
     return getTaxRegimeById(store.taxRegime);
   }, [store.taxRegime]);
 
+  // Carrega simulação enviada via link (?cost=...&price=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const costParam = params.get('cost');
+    const priceParam = params.get('price');
+    const mktParam = params.get('mkt');
+    const condParam = params.get('cond');
+    const catParam = params.get('cat');
+    const weightParam = params.get('weight');
+    const taxParam = params.get('tax');
+    const kitParam = params.get('kit');
+
+    if (costParam || priceParam) {
+      if (costParam && !isNaN(Number(costParam))) store.setProductCost(Number(costParam));
+      if (priceParam && !isNaN(Number(priceParam))) store.setSalePrice(Number(priceParam));
+      if (mktParam && condParam) store.setMarketplace(mktParam, condParam);
+      if (catParam) store.setCategoryId(catParam);
+      if (weightParam) store.setShippingWeightTier(weightParam);
+      if (taxParam) store.setTaxRegime(taxParam);
+      if (kitParam && !isNaN(Number(kitParam))) store.setKitQuantity(Number(kitParam));
+      setIsSharedFromUrl(true);
+    }
+  }, []);
+
+  const generateShareUrl = () => {
+    const params = new URLSearchParams();
+    if (store.productCost) params.set('cost', String(store.productCost));
+    if (store.salePrice) params.set('price', String(store.salePrice));
+    if (store.marketplaceId) params.set('mkt', store.marketplaceId);
+    if (store.marketplaceConditionId) params.set('cond', store.marketplaceConditionId);
+    if (store.categoryId) params.set('cat', store.categoryId);
+    if (store.shippingWeightTier) params.set('weight', store.shippingWeightTier);
+    if (store.taxRegime) params.set('tax', store.taxRegime);
+    if (kitQty > 1) params.set('kit', String(kitQty));
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://quantovende.vercel.app';
+    return `${origin}/calculadora?${params.toString()}`;
+  };
+
   const generateSummaryText = () => {
     if (!result) return '';
     const category = getCategoryById(store.categoryId);
@@ -84,26 +126,8 @@ ${result.breakdown.marketing > 0 ? `📢 *Publicidade:* ${fmt(result.breakdown.m
 📈 *Margem Líquida:* ${result.margin}%
 ━━━━━━━━━━━━━━━━━━━━━━
 
-🔗 Calculado em: https://quantovende.vercel.app/calculadora`;
-  };
-
-  const handleCopySummary = async () => {
-    const text = generateSummaryText();
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }
+🔗 *Ver e editar esta simulação:*
+${generateShareUrl()}`;
   };
 
   const handleWhatsAppShare = () => {
@@ -221,6 +245,33 @@ ${result.breakdown.marketing > 0 ? `📢 *Publicidade:* ${fmt(result.breakdown.m
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
       <SavedProductsModal isOpen={savedModalOpen} onClose={() => setSavedModalOpen(false)} />
       <ProductReportModal isOpen={reportModalOpen} onClose={() => setReportModalOpen(false)} result={result} rule={rule} />
+      <ShareSimulationModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        shareUrl={generateShareUrl()}
+        summaryText={generateSummaryText()}
+        productName={productNameInput}
+        profitFormatted={result ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(result.profit) : 'R$ 0,00'}
+        margin={result ? result.margin : 0}
+      />
+
+      {isSharedFromUrl && (
+        <div className="lg:col-span-12 p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-between gap-3 text-xs text-emerald-950 dark:text-emerald-200 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>
+              <strong>Simulação compartilhada carregada!</strong> Você está visualizando os valores enviados para você. Altere qualquer dado abaixo para testar no seu próprio produto.
+            </span>
+          </div>
+          <button
+            onClick={() => setIsSharedFromUrl(false)}
+            className="text-emerald-700 hover:text-emerald-950 dark:text-emerald-400 font-bold px-2 py-1 text-xs"
+            title="Fechar aviso"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="lg:col-span-5 space-y-6">
         <h2 className="text-2xl font-bold flex items-center justify-between flex-wrap gap-2">
@@ -742,12 +793,12 @@ ${result.breakdown.marketing > 0 ? `📢 *Publicidade:* ${fmt(result.breakdown.m
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleCopySummary}
-                      className="flex items-center justify-center gap-1.5 h-10"
-                      title="Copiar resumo para área de transferência"
+                      onClick={() => setShareModalOpen(true)}
+                      className="flex items-center justify-center gap-1.5 h-10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/5 font-semibold"
+                      title="Compartilhar simulação via Link interativo ou WhatsApp"
                     >
-                      {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
-                      <span className="font-medium">{copied ? 'Copiado!' : 'Copiar'}</span>
+                      <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>Compartilhar</span>
                     </Button>
 
                     <Button
