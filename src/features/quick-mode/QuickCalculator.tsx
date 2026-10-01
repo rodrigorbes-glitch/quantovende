@@ -274,9 +274,12 @@ ${generateShareUrl()}`;
       )}
 
       <div className="lg:col-span-5 space-y-6">
-        <h2 className="text-2xl font-bold flex items-center justify-between flex-wrap gap-2">
-          <span>Modo Rápido</span>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Modo Rápido</h2>
+            <p className="text-foreground/70 text-xs sm:text-sm">Descubra rapidamente quanto sobra no seu bolso.</p>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
             <button
               onClick={() => setSavedModalOpen(true)}
               className="text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0"
@@ -305,8 +308,7 @@ ${generateShareUrl()}`;
               Nova simulação
             </button>
           </div>
-        </h2>
-        <p className="text-foreground/70 text-sm">Descubra rapidamente quanto sobra no seu bolso.</p>
+        </div>
         
         <div className="space-y-4">
           <div>
@@ -333,14 +335,14 @@ ${generateShareUrl()}`;
                 )}
               </div>
 
-              <div className="grid grid-cols-5 gap-1 pt-0.5">
+              <div className="grid grid-cols-5 gap-1 pt-0.5 w-full">
                 {[1, 2, 3, 4, 5].map(qty => (
                   <button
                     key={qty}
                     type="button"
                     onClick={() => store.setKitQuantity(qty)}
                     className={cn(
-                      "py-1.5 rounded-lg text-xs font-semibold transition-all border text-center",
+                      "py-2 px-0.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all border text-center truncate",
                       store.kitQuantity === qty
                         ? "bg-primary text-primary-foreground border-primary shadow-xs"
                         : "bg-background hover:bg-muted/50 border-border text-foreground/70"

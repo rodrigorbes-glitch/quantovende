@@ -246,12 +246,12 @@ export function MarketplaceComparator() {
                </div>
             )}
 
-            <div className="sm:col-span-2 pt-3 mt-1 border-t border-primary/10 flex flex-wrap gap-3">
+            <div className="sm:col-span-2 pt-3 mt-1 border-t border-primary/10 flex flex-wrap sm:flex-nowrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleCopyComparison}
-                className="flex items-center gap-1.5 h-8 text-xs bg-background/60"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 h-9 text-xs bg-background/60"
               >
                 {copiedComparison ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedComparison ? 'Comparativo Copiado!' : 'Copiar Comparativo'}</span>
@@ -261,7 +261,7 @@ export function MarketplaceComparator() {
                 variant="outline"
                 size="sm"
                 onClick={handleWhatsAppComparison}
-                className="flex items-center gap-1.5 h-8 text-xs text-emerald-600 hover:text-emerald-700 bg-background/60 border-emerald-200 dark:border-emerald-800"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 h-9 text-xs text-emerald-600 hover:text-emerald-700 bg-background/60 border-emerald-200 dark:border-emerald-800"
               >
                 <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Enviar no WhatsApp</span>

@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Package, Sparkles } from 'lucide-react';
+import { Package, Sparkles, Menu, X, Smartphone, HelpCircle, Trash2, Link } from 'lucide-react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { OnboardingModal } from '../../features/onboarding/OnboardingModal';
 import { SavedProductsModal } from '../../features/saved-products/SavedProductsModal';
 import { ProPlansModal } from '../../features/subscription/ProPlansModal';
 import { Logo } from '../components/Logo';
-import { InstallPwaButton, InstallPwaBanner } from '../components/InstallPwa';
+import { InstallPwaBanner, usePwa } from '../components/InstallPwa';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -16,6 +16,8 @@ export function MainLayout({ children }: MainLayoutProps) {
   const store = usePricingStore();
   const [forceOnboarding, setForceOnboarding] = useState(false);
   const [savedProductsOpen, setSavedProductsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { canInstall, triggerInstall } = usePwa();
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground flex flex-col">
@@ -24,12 +26,19 @@ export function MainLayout({ children }: MainLayoutProps) {
       <ProPlansModal isOpen={store.isProModalOpen} onClose={() => store.setProModalOpen(false)} />
       <InstallPwaBanner />
       
-      <header className="border-b border-border/40 bg-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <header className="border-b border-border/40 bg-card sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
           <div className="cursor-pointer shrink-0" onClick={() => { window.location.href = '/'; }}>
-            <Logo size="md" />
+            <div className="block sm:hidden">
+              <Logo size="sm" />
+            </div>
+            <div className="hidden sm:block">
+              <Logo size="md" />
+            </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-3">
             <button
               onClick={() => store.setProModalOpen(true)}
               className="text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5"
@@ -37,7 +46,6 @@ export function MainLayout({ children }: MainLayoutProps) {
               <Sparkles className="w-3.5 h-3.5 fill-amber-950" />
               <span>{store.isProUser ? 'PRO Ativo' : 'Seja PRO'}</span>
             </button>
-            <InstallPwaButton />
             <button
               onClick={() => setSavedProductsOpen(true)}
               className="text-xs font-semibold text-primary hover:text-primary/90 transition-colors px-2.5 py-1.5 rounded-lg bg-primary/10 flex items-center gap-1.5"
@@ -70,12 +78,106 @@ export function MainLayout({ children }: MainLayoutProps) {
                   window.location.reload();
                 }
               }}
-              className="text-xs font-medium text-foreground/50 hover:text-foreground transition-colors px-3 py-1.5 border border-border/40 rounded-lg bg-background shadow-sm hover:shadow shrink-0"
+              className="text-xs font-medium text-foreground/50 hover:text-foreground transition-colors px-3 py-1.5 border border-border/40 rounded-lg bg-background shadow-xs hover:shadow-sm shrink-0"
             >
               Limpar dados
             </button>
           </div>
+
+          {/* Mobile Actions Bar */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={() => store.setProModalOpen(true)}
+              className="text-[11px] font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1"
+            >
+              <Sparkles className="w-3 h-3 fill-amber-950" />
+              <span>{store.isProUser ? 'PRO' : 'Seja PRO'}</span>
+            </button>
+
+            <button
+              onClick={() => setSavedProductsOpen(true)}
+              className="p-1.5 rounded-lg bg-primary/10 text-primary relative flex items-center justify-center"
+              title="Meus Produtos Salvos"
+            >
+              <Package className="w-4 h-4" />
+              {(store.savedProducts?.length || 0) > 0 && (
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                  {store.savedProducts.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-1.5 rounded-lg border border-border bg-card text-foreground/70 hover:text-foreground"
+              aria-label="Menu"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-border bg-card/95 backdrop-blur-md px-4 py-3 space-y-2 animate-in slide-in-from-top-2 duration-150">
+            {canInstall && (
+              <button
+                onClick={() => {
+                  triggerInstall();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+              >
+                <Smartphone className="w-4 h-4" />
+                <span>📱 Instalar App no Celular</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setSavedProductsOpen(true);
+                setMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-medium text-foreground hover:bg-muted/50"
+            >
+              <Package className="w-4 h-4 text-primary" />
+              <span>Meus Produtos Salvos ({store.savedProducts?.length || 0})</span>
+            </button>
+            <button
+              onClick={() => {
+                window.location.href = '/integracoes';
+                setMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-medium text-foreground hover:bg-muted/50"
+            >
+              <Link className="w-4 h-4 text-foreground/60" />
+              <span>Integrações (OAuth)</span>
+            </button>
+            <button
+              onClick={() => {
+                setForceOnboarding(true);
+                setMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-medium text-foreground hover:bg-muted/50"
+            >
+              <HelpCircle className="w-4 h-4 text-foreground/60" />
+              <span>Como funciona</span>
+            </button>
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                if (window.confirm('Tem certeza que deseja apagar todos os dados persistidos e resetar o aplicativo?')) {
+                  store.clearData();
+                  localStorage.removeItem('quantovende-storage');
+                  window.location.reload();
+                }
+              }}
+              className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-medium text-rose-500 hover:bg-rose-500/10"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Limpar dados / Resetar</span>
+            </button>
+          </div>
+        )}
       </header>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">

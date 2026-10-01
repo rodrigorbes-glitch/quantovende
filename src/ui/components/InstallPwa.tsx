@@ -39,7 +39,7 @@ export function usePwa() {
     setIsIos(isIosDevice);
 
     // Verifica se o usuario ja dispensou o banner nesta sessao
-    const dismissed = sessionStorage.getItem('pwa_prompt_dismissed') === 'true';
+    const dismissed = localStorage.getItem('pwa_prompt_dismissed_v2') === 'true';
     setIsDismissed(dismissed);
 
     // Captura o evento nativo de instalacao do Chrome / Edge / Android
@@ -70,7 +70,7 @@ export function usePwa() {
 
   const dismissBanner = () => {
     setIsDismissed(true);
-    sessionStorage.setItem('pwa_prompt_dismissed', 'true');
+    localStorage.setItem('pwa_prompt_dismissed_v2', 'true');
   };
 
   return {
@@ -110,7 +110,7 @@ export function InstallPwaButton({ className = '' }: { className?: string }) {
 }
 
 /**
- * Banner flutuante inteligente na parte inferior apenas para mobile
+ * Banner superior limpo e nao intrusivo apenas para mobile
  */
 export function InstallPwaBanner() {
   const { isStandalone, canInstall, isDismissed, triggerInstall, dismissBanner, showIosGuide, setShowIosGuide } = usePwa();
@@ -121,36 +121,33 @@ export function InstallPwaBanner() {
 
   return (
     <>
-      <aside aria-label="Instalar aplicativo" className="fixed bottom-4 left-4 right-4 z-50 md:hidden animate-in slide-in-from-bottom-5 duration-300">
-        <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-2xl border border-slate-700/80 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0 shadow-md">
-              <Smartphone className="w-5 h-5 text-white" />
+      <aside aria-label="Instalar aplicativo" className="w-full bg-slate-900 text-white border-b border-slate-800 px-3 py-2 md:hidden z-30 animate-in slide-in-from-top duration-300">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+              <Smartphone className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+            <div className="min-w-0">
+              <span className="text-xs font-bold text-white block leading-tight truncate">
                 QuantoVende no Celular
-                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded font-medium border border-emerald-500/30">
-                  Grátis
-                </span>
-              </h4>
-              <p className="text-[11px] text-slate-300 leading-tight">
-                Instale para precificar rápido em feiras e fornecedores.
-              </p>
+              </span>
+              <span className="text-[10px] text-slate-300 block leading-tight truncate">
+                Instale para precificar rápido em feiras e lojas
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={triggerInstall}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold px-3 py-2 rounded-xl transition-all shadow flex items-center gap-1"
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold px-2.5 py-1 rounded-lg transition-all shadow-xs flex items-center gap-1"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3 h-3" />
               <span>Instalar</span>
             </button>
             <button
               onClick={dismissBanner}
-              className="p-1.5 text-slate-400 hover:text-white transition-colors rounded-lg"
+              className="p-1 text-slate-400 hover:text-white transition-colors"
               title="Fechar"
             >
               <X className="w-4 h-4" />
