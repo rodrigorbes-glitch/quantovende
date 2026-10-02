@@ -221,16 +221,18 @@ export function ProPlansModal({ isOpen, onClose }: ProPlansModalProps) {
           </div>
         </div>
 
-        {/* Subtle Footer for Testing / Demo */}
-        <div className="bg-muted/40 px-6 py-3 border-t border-border flex items-center justify-between text-[11px] text-foreground/50">
-          <span>Ambiente de demonstração</span>
-          <button
-            onClick={handleActivateDemo}
-            className="hover:text-foreground underline transition-colors"
-          >
-            {store.isProUser ? 'Desativar Status PRO (Voltar ao Free)' : 'Testar Recursos PRO Gratuitamente'}
-          </button>
-        </div>
+        {/* Dev only toggle */}
+        {import.meta.env.DEV && (
+          <div className="bg-muted/40 px-6 py-3 border-t border-border flex items-center justify-between text-[11px] text-foreground/50">
+            <span>Ambiente de Desenvolvimento</span>
+            <button
+              onClick={handleActivateDemo}
+              className="hover:text-foreground underline transition-colors"
+            >
+              {store.isProUser ? 'Desativar Status PRO (Dev)' : 'Ativar PRO (Dev)'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
