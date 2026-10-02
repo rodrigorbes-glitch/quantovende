@@ -1,39 +1,197 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../../core/supabase/client';
 import { MainLayout } from '../../ui/layout/MainLayout';
 import { Card } from '../../ui/components/Card';
 import { Button } from '../../ui/components/Button';
-import { RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { 
+  RefreshCw, 
+  CheckCircle2, 
+  AlertCircle, 
+  Users, 
+  DollarSign, 
+  UserPlus, 
+  ShieldAlert, 
+  Search, 
+  ShieldCheck, 
+  X,
+  CreditCard,
+  Crown
+} from 'lucide-react';
+
+interface SubscriptionRow {
+  id: string;
+  email: string;
+  customer_name: string | null;
+  status: string;
+  billing_type: string | null;
+  value: number | string | null;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+  asaas_payment_id: string | null;
+}
 
 export function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState<'subscriptions' | 'integrations'>('subscriptions');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Subscriptions State
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Form State for Manual Subscriber
+  const [formEmail, setFormEmail] = useState('');
+  const [formName, setFormName] = useState('');
+  const [formPlan, setFormPlan] = useState<'monthly' | 'annual' | 'lifetime'>('monthly');
+  const [formBilling, setFormBilling] = useState('PIX_WHATSAPP');
+  const [isSavingSub, setIsSavingSub] = useState(false);
+
+  // Integrations / Rate Intelligence State
   const [credentials, setCredentials] = useState<any[]>([]);
   const [rateVersions, setRateVersions] = useState<any[]>([]);
 
-  async function fetchData() {
+  async function fetchAllData() {
     if (!supabase) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    
-    const [credsRes, ratesRes] = await Promise.all([
-      supabase.rpc('get_admin_oauth_status'),
-      supabase.from('marketplace_rate_versions').select('id, version, status, created_at, marketplace_rate_profiles!profile_id(marketplace)').order('created_at', { ascending: false }).limit(10)
-    ]);
 
-    if (credsRes.data) setCredentials(credsRes.data);
-    if (ratesRes.data) setRateVersions(ratesRes.data);
-    
-    setLoading(false);
+    try {
+      const [subsRes, credsRes, ratesRes] = await Promise.all([
+        supabase.rpc('get_admin_subscriptions'),
+        supabase.rpc('get_admin_oauth_status'),
+        supabase.from('marketplace_rate_versions').select('id, version, status, created_at, marketplace_rate_profiles!profile_id(marketplace)').order('created_at', { ascending: false }).limit(10)
+      ]);
+
+      if (subsRes.data) setSubscriptions(subsRes.data);
+      if (credsRes.data) setCredentials(credsRes.data);
+      if (ratesRes.data) setRateVersions(ratesRes.data);
+    } catch (err: any) {
+      console.error('Erro ao carregar dados do admin:', err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    fetchData();
+    fetchAllData();
   }, []);
 
+  // Filtered subscriptions
+  const filteredSubscriptions = useMemo(() => {
+    if (!searchQuery.trim()) return subscriptions;
+    const q = searchQuery.toLowerCase().trim();
+    return subscriptions.filter(s => 
+      s.email?.toLowerCase().includes(q) || 
+      (s.customer_name && s.customer_name.toLowerCase().includes(q))
+    );
+  }, [subscriptions, searchQuery]);
+
+  // Metrics
+  const metrics = useMemo(() => {
+    const now = new Date();
+    const active = subscriptions.filter(s => s.status === 'active' && new Date(s.expires_at) > now);
+    const expiredOrCanceled = subscriptions.filter(s => s.status !== 'active' || new Date(s.expires_at) <= now);
+    const mrr = active.reduce((acc, curr) => acc + (Number(curr.value) > 0 ? Number(curr.value) : 29.90), 0);
+
+    return {
+      total: subscriptions.length,
+      activeCount: active.length,
+      inactiveCount: expiredOrCanceled.length,
+      estimatedMrr: mrr
+    };
+  }, [subscriptions]);
+
+  // Action: Toggle subscriber status (Active <-> Canceled)
+  const handleToggleStatus = async (sub: SubscriptionRow) => {
+    if (!supabase) return;
+    const newStatus = sub.status === 'active' ? 'canceled' : 'active';
+    const confirmMsg = newStatus === 'canceled' 
+      ? `Deseja realmente bloquear/cancelar o acesso de ${sub.email}?` 
+      : `Deseja reativar o acesso de ${sub.email}?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    const { error } = await supabase.rpc('admin_toggle_subscription_status', {
+      p_email: sub.email,
+      p_new_status: newStatus
+    });
+
+    if (error) {
+      alert(`Erro: ${error.message}`);
+    } else {
+      fetchAllData();
+    }
+  };
+
+  // Action: Extend validity (+30d, +365d, lifetime)
+  const handleExtendValidity = async (email: string, days: number) => {
+    if (!supabase) return;
+    const label = days >= 30000 ? 'Vitalício' : `+${days} dias`;
+    if (!window.confirm(`Confirmar extensão de validade (${label}) para ${email}?`)) return;
+
+    const { error } = await supabase.rpc('admin_extend_subscription', {
+      p_email: email,
+      p_days: days
+    });
+
+    if (error) {
+      alert(`Erro: ${error.message}`);
+    } else {
+      fetchAllData();
+    }
+  };
+
+  // Action: Submit Manual Subscriber
+  const handleAddManualSubscriber = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase || !formEmail) return;
+    setIsSavingSub(true);
+
+    try {
+      const now = new Date();
+      let expiresAt = new Date();
+      let planValue = 29.90;
+
+      if (formPlan === 'monthly') {
+        expiresAt.setDate(now.getDate() + 35);
+        planValue = 29.90;
+      } else if (formPlan === 'annual') {
+        expiresAt.setDate(now.getDate() + 375);
+        planValue = 238.80;
+      } else {
+        expiresAt = new Date('2099-12-31T23:59:59Z');
+        planValue = 0;
+      }
+
+      const { error } = await supabase.rpc('admin_upsert_subscription', {
+        p_email: formEmail.trim().toLowerCase(),
+        p_name: formName.trim() || 'Assinante Manual',
+        p_status: 'active',
+        p_billing_type: formBilling,
+        p_expires_at: expiresAt.toISOString(),
+        p_value: planValue
+      });
+
+      if (error) throw error;
+
+      setIsAddModalOpen(false);
+      setFormEmail('');
+      setFormName('');
+      fetchAllData();
+      alert('Assinante cadastrado e liberado com sucesso!');
+    } catch (err: any) {
+      alert(`Falha ao cadastrar: ${err.message}`);
+    } finally {
+      setIsSavingSub(false);
+    }
+  };
+
+  // Sync Rate Intelligence Handler
   const handleSyncNow = async () => {
     setSyncing(true);
     setSyncMessage(null);
@@ -58,7 +216,7 @@ export function AdminDashboard() {
       }
 
       setSyncMessage({ type: 'success', text: 'Sincronização concluída com sucesso!' });
-      await fetchData();
+      await fetchAllData();
     } catch (err: any) {
       setSyncMessage({ type: 'error', text: err.message || 'Falha na sincronização' });
     } finally {
@@ -68,93 +226,454 @@ export function AdminDashboard() {
 
   return (
     <MainLayout>
-      <div className="p-8 max-w-6xl mx-auto space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
+        
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-5">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Painel Administrativo</h1>
-            <p className="text-slate-500 mt-2">Visão geral do sistema e saúde das integrações (Apenas Administradores).</p>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase mb-2 border border-amber-500/20">
+              <Crown className="w-3.5 h-3.5" />
+              <span>Painel do Proprietário</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+              QuantoVende Central
+            </h1>
+            <p className="text-sm text-foreground/60 mt-1">
+              Gestão de assinantes, receita, liberações manuais e integridade do motor de taxas.
+            </p>
           </div>
-          <div>
+
+          <div className="flex items-center gap-2">
             <Button 
-              onClick={handleSyncNow} 
-              disabled={syncing}
-              className="flex items-center gap-2"
+              variant="outline"
+              size="sm"
+              onClick={fetchAllData}
+              disabled={loading}
+              className="flex items-center gap-1.5"
             >
-              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Sincronizando...' : 'Sincronizar Taxas Agora'}
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Atualizar</span>
             </Button>
+
+            {activeTab === 'subscriptions' && (
+              <Button
+                size="sm"
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>+ Ativar Assinante Manual</span>
+              </Button>
+            )}
           </div>
         </div>
 
-        {syncMessage && (
-          <div className={`p-4 rounded-lg flex items-center gap-2 text-sm ${
-            syncMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {syncMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
-            <span>{syncMessage.text}</span>
+        {/* Tab Navigation */}
+        <div className="flex border-b border-border gap-2">
+          <button
+            onClick={() => setActiveTab('subscriptions')}
+            className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'subscriptions'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-foreground/60 hover:text-foreground'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Assinantes & Faturamento ({metrics.total})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('integrations')}
+            className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'integrations'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-foreground/60 hover:text-foreground'
+            }`}
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Motor de Taxas & OAuth</span>
+          </button>
+        </div>
+
+        {/* TAB 1: SUBSCRIPTIONS & REVENUE */}
+        {activeTab === 'subscriptions' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Metric Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="p-5 bg-card border-border">
+                <div className="flex items-center justify-between text-xs text-foreground/60 font-semibold uppercase">
+                  <span>Assinantes Ativos</span>
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div className="text-3xl font-black text-foreground mt-2">
+                  {metrics.activeCount}
+                </div>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1 block">
+                  Acesso liberado e validado
+                </span>
+              </Card>
+
+              <Card className="p-5 bg-card border-border">
+                <div className="flex items-center justify-between text-xs text-foreground/60 font-semibold uppercase">
+                  <span>MRR Estimado</span>
+                  <DollarSign className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div className="text-3xl font-black text-foreground mt-2">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.estimatedMrr)}
+                </div>
+                <span className="text-xs text-foreground/50 font-medium mt-1 block">
+                  Receita mensal recorrente
+                </span>
+              </Card>
+
+              <Card className="p-5 bg-card border-border">
+                <div className="flex items-center justify-between text-xs text-foreground/60 font-semibold uppercase">
+                  <span>Vencidos / Cancelados</span>
+                  <ShieldAlert className="w-4 h-4 text-amber-500" />
+                </div>
+                <div className="text-3xl font-black text-foreground mt-2">
+                  {metrics.inactiveCount}
+                </div>
+                <span className="text-xs text-foreground/50 font-medium mt-1 block">
+                  Sem acesso ativo no momento
+                </span>
+              </Card>
+
+              <Card className="p-5 bg-card border-border">
+                <div className="flex items-center justify-between text-xs text-foreground/60 font-semibold uppercase">
+                  <span>Total Histórico</span>
+                  <Users className="w-4 h-4 text-primary" />
+                </div>
+                <div className="text-3xl font-black text-foreground mt-2">
+                  {metrics.total}
+                </div>
+                <span className="text-xs text-foreground/50 font-medium mt-1 block">
+                  Clientes cadastrados
+                </span>
+              </Card>
+            </div>
+
+            {/* Search Bar & Table Card */}
+            <Card className="p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 text-foreground/40 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por e-mail ou nome..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <span className="text-xs text-foreground/50 self-end sm:self-center">
+                  Exibindo {filteredSubscriptions.length} assinante(s)
+                </span>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto border border-border rounded-2xl">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-muted/50 border-b border-border text-foreground/70 uppercase tracking-wider text-[11px] font-bold">
+                    <tr>
+                      <th className="py-3 px-4">Cliente</th>
+                      <th className="py-3 px-4">Origem / Pagamento</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">Validade</th>
+                      <th className="py-3 px-4 text-right">Ações Rápidas</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filteredSubscriptions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-foreground/50">
+                          Nenhum assinante encontrado para esta busca.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredSubscriptions.map((sub) => {
+                        const isExpired = new Date(sub.expires_at) <= new Date();
+                        const isActive = sub.status === 'active' && !isExpired;
+                        const isLifetime = new Date(sub.expires_at).getFullYear() > 2090;
+
+                        return (
+                          <tr key={sub.id} className="hover:bg-muted/20 transition-colors">
+                            <td className="py-3 px-4">
+                              <strong className="block font-semibold text-foreground text-sm">
+                                {sub.customer_name || 'Sem nome informado'}
+                              </strong>
+                              <span className="text-foreground/70 font-mono text-[11px]">{sub.email}</span>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-1.5">
+                                <CreditCard className="w-3.5 h-3.5 text-foreground/50" />
+                                <span className="font-medium text-foreground/80 uppercase">
+                                  {sub.billing_type || (sub.asaas_payment_id ? 'Asaas' : 'Manual')}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-foreground/50 block">
+                                {sub.asaas_payment_id ? `ID: ${sub.asaas_payment_id}` : 'Liberado Manualmente'}
+                              </span>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-[10px] ${
+                                isActive 
+                                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20' 
+                                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                                {isActive ? 'Ativo' : isExpired ? 'Vencido' : 'Cancelado'}
+                              </span>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              {isLifetime ? (
+                                <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                  <Crown className="w-3.5 h-3.5" />
+                                  Vitalício
+                                </span>
+                              ) : (
+                                <div>
+                                  <span className="font-semibold text-foreground">
+                                    {new Date(sub.expires_at).toLocaleDateString('pt-BR')}
+                                  </span>
+                                  <span className="text-[10px] text-foreground/50 block">
+                                    {isExpired ? 'Expirou' : 'Renovação programada'}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleToggleStatus(sub)}
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                                    sub.status === 'active'
+                                      ? 'text-rose-600 hover:bg-rose-500/10 border border-rose-500/20'
+                                      : 'text-emerald-600 hover:bg-emerald-500/10 border border-emerald-500/20'
+                                  }`}
+                                  title={sub.status === 'active' ? 'Bloquear conta' : 'Reativar conta'}
+                                >
+                                  {sub.status === 'active' ? 'Bloquear' : 'Reativar'}
+                                </button>
+
+                                <button
+                                  onClick={() => handleExtendValidity(sub.email, 30)}
+                                  className="px-2 py-1 rounded-lg text-[10px] font-bold text-foreground/70 hover:text-foreground border border-border hover:bg-muted/50 transition-colors"
+                                  title="Adicionar 30 dias de validade"
+                                >
+                                  +30d
+                                </button>
+
+                                <button
+                                  onClick={() => handleExtendValidity(sub.email, 365)}
+                                  className="px-2 py-1 rounded-lg text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10 border border-emerald-500/20 transition-colors"
+                                  title="Adicionar 1 ano de validade"
+                                >
+                                  +1 ano
+                                </button>
+
+                                <button
+                                  onClick={() => handleExtendValidity(sub.email, 35000)}
+                                  className="px-2 py-1 rounded-lg text-[10px] font-bold text-amber-600 hover:bg-amber-500/10 border border-amber-500/20 transition-colors"
+                                  title="Tornar Vitalício"
+                                >
+                                  👑
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           </div>
         )}
 
-        {loading ? (
-          <div className="text-slate-500 animate-pulse">Carregando dados da nuvem...</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            
-            <Card className="p-6 space-y-4">
-              <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                Contas Conectadas
-              </h2>
-              {credentials.length === 0 ? (
-                <p className="text-sm text-slate-500">Nenhuma conta conectada.</p>
-              ) : (
-                <div className="space-y-4">
-                  {credentials.map(c => (
-                    <div key={c.marketplace + c.seller_user_id} className="p-4 border rounded-lg bg-slate-50">
-                      <div className="font-semibold text-slate-800 capitalize">{c.marketplace}</div>
-                      <div className="text-sm text-slate-500">Seller ID: {c.seller_user_id}</div>
-                      <div className="text-xs text-slate-400 mt-1">
-                        Último Refresh: {new Date(c.updated_at).toLocaleString('pt-BR')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
+        {/* TAB 2: RATE INTELLIGENCE & OAUTH */}
+        {activeTab === 'integrations' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between bg-muted/30 p-4 rounded-2xl border border-border">
+              <div>
+                <h3 className="font-bold text-sm text-foreground">Sincronizador Automático de Taxas</h3>
+                <p className="text-xs text-foreground/60">Dispare a coleta imediata dos perfis oficiais de taxas de ML e Amazon.</p>
+              </div>
+              <Button 
+                onClick={handleSyncNow} 
+                disabled={syncing}
+                size="sm"
+                className="flex items-center gap-1.5"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                <span>{syncing ? 'Sincronizando...' : 'Sincronizar Agora'}</span>
+              </Button>
+            </div>
 
-            <Card className="p-6 space-y-4">
-              <h2 className="text-xl font-bold text-slate-700 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-                Histórico de Taxas Coletadas
-              </h2>
-              {rateVersions.length === 0 ? (
-                <p className="text-sm text-slate-500">Nenhuma taxa coletada ainda.</p>
-              ) : (
-                <div className="space-y-3">
-                  {rateVersions.map(v => (
-                    <div key={v.id} className="p-3 border rounded-lg bg-slate-50 flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-slate-800 capitalize">{v.marketplace_rate_profiles?.marketplace || 'Desconhecido'}</div>
-                        <div className="text-xs font-mono text-slate-400">Ver: {v.version}</div>
-                        <div className="text-xs text-slate-500 mt-1">
-                          {new Date(v.created_at).toLocaleString('pt-BR')}
+            {syncMessage && (
+              <div className={`p-4 rounded-xl flex items-center gap-2 text-xs font-semibold ${
+                syncMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-700 border border-rose-500/20'
+              }`}>
+                {syncMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                <span>{syncMessage.text}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="p-6 space-y-4">
+                <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                  Contas OAuth Conectadas
+                </h2>
+                {credentials.length === 0 ? (
+                  <p className="text-xs text-foreground/50">Nenhuma conta conectada.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {credentials.map(c => (
+                      <div key={c.marketplace + c.seller_user_id} className="p-3.5 border border-border rounded-xl bg-muted/20">
+                        <div className="font-bold text-foreground text-sm capitalize">{c.marketplace}</div>
+                        <div className="text-xs text-foreground/60 font-mono">Seller ID: {c.seller_user_id}</div>
+                        <div className="text-[11px] text-foreground/40 mt-1">
+                          Último Refresh: {new Date(c.updated_at).toLocaleString('pt-BR')}
                         </div>
                       </div>
-                      <div>
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          v.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'
-                        }`}>
-                          {v.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
+                    ))}
+                  </div>
+                )}
+              </Card>
 
+              <Card className="p-6 space-y-4">
+                <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
+                  Histórico de Versões de Taxas
+                </h2>
+                {rateVersions.length === 0 ? (
+                  <p className="text-xs text-foreground/50">Nenhuma taxa coletada ainda.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {rateVersions.map(v => (
+                      <div key={v.id} className="p-3 border border-border rounded-xl bg-muted/20 flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-foreground text-xs capitalize">{v.marketplace_rate_profiles?.marketplace || 'Desconhecido'}</div>
+                          <div className="text-[11px] font-mono text-foreground/50">Versão: {v.version}</div>
+                          <div className="text-[10px] text-foreground/40 mt-0.5">
+                            {new Date(v.created_at).toLocaleString('pt-BR')}
+                          </div>
+                        </div>
+                        <div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                            v.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20' : 'bg-muted text-foreground/50'
+                          }`}>
+                            {v.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </div>
           </div>
         )}
+
+        {/* MODAL: ADICIONAR ASSINANTE MANUAL */}
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div 
+              className="bg-card text-foreground border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-5 bg-gradient-to-r from-emerald-700 to-teal-800 text-white flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-base">Ativar Assinante Manual</h3>
+                  <p className="text-xs text-emerald-100 mt-0.5">Libere acesso PRO para clientes do Pix / WhatsApp / Parcerias</p>
+                </div>
+                <button 
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="p-1 rounded-full hover:bg-white/10 text-white/70 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddManualSubscriber} className="p-6 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">E-mail do Cliente *</label>
+                  <input
+                    type="email"
+                    required
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    placeholder="cliente@email.com"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Nome do Cliente (Opcional)</label>
+                  <input
+                    type="text"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="Ex: João da Silva"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Período de Acesso *</label>
+                  <select
+                    value={formPlan}
+                    onChange={(e) => setFormPlan(e.target.value as any)}
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                  >
+                    <option value="monthly">Mensal (35 dias de carência) - R$ 29,90</option>
+                    <option value="annual">Anual (375 dias de carência) - R$ 238,80</option>
+                    <option value="lifetime">Vitalício (Admin / Cortesia Especial)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Canal de Pagamento</label>
+                  <select
+                    value={formBilling}
+                    onChange={(e) => setFormBilling(e.target.value)}
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                  >
+                    <option value="PIX_WHATSAPP">Pix Direto (WhatsApp)</option>
+                    <option value="ASAAS_MANUAL">Asaas Avulso</option>
+                    <option value="CORTESIA">Cortesia / Parceiro</option>
+                    <option value="OUTRO">Outro</option>
+                  </select>
+                </div>
+
+                <div className="pt-3 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSavingSub || !formEmail}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  >
+                    {isSavingSub ? 'Salvando...' : 'Liberar PRO Agora'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
       </div>
     </MainLayout>
   );

@@ -100,15 +100,27 @@ export function ProductReportModal({ isOpen, onClose, result, rule }: ProductRep
             </div>
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-xs text-foreground/70 shrink-0">Identificação:</span>
-            <input
-              type="text"
-              placeholder="Nome ou código do produto / SKU (opcional)"
-              value={productTitle}
-              onChange={(e) => setProductTitle(e.target.value)}
-              className="flex-1 h-8 px-2.5 rounded-lg border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary placeholder:text-foreground/40"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-foreground/70 shrink-0">Produto:</span>
+              <input
+                type="text"
+                placeholder="Nome ou código do produto / SKU (opcional)"
+                value={productTitle}
+                onChange={(e) => setProductTitle(e.target.value)}
+                className="flex-1 h-8 px-2.5 rounded-lg border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary placeholder:text-foreground/40"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-foreground/70 shrink-0">Sua Loja:</span>
+              <input
+                type="text"
+                placeholder="Nome da sua loja / Marca (opcional)"
+                value={store.proStoreName || ''}
+                onChange={(e) => store.setProStoreName(e.target.value)}
+                className="flex-1 h-8 px-2.5 rounded-lg border border-input bg-background text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary placeholder:text-foreground/40"
+              />
+            </div>
           </div>
         </div>
 
@@ -147,6 +159,11 @@ export function ProductReportModal({ isOpen, onClose, result, rule }: ProductRep
                 <Logo isPrint={true} size="md" />
               </div>
               <p className="text-xs text-slate-500 font-medium">Relatório Oficial de Precificação & Rentabilidade</p>
+              {store.proStoreName && (
+                <p className="text-xs text-slate-800 font-bold mt-1">
+                  Elaborado para: <span className="text-indigo-600">{store.proStoreName}</span>
+                </p>
+              )}
             </div>
 
             <div className="text-right text-xs text-slate-500 space-y-0.5">

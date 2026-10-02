@@ -77,17 +77,22 @@ interface AppState {
   hasSeenOnboarding: boolean;
   setHasSeenOnboarding: (v: boolean) => void;
 
-  // Assinatura PRO
+  // Assinatura PRO & Perfil
   isProModalOpen: boolean;
   setProModalOpen: (v: boolean) => void;
+  isProfileModalOpen: boolean;
+  setProfileModalOpen: (v: boolean) => void;
   isProUser: boolean;
   setIsProUser: (v: boolean) => void;
   proEmail: string | null;
   proCustomerName: string | null;
   proExpiresAt: string | null;
+  proStoreName: string | null;
+  setProStoreName: (name: string | null) => void;
   setProDetails: (email: string | null, name: string | null, expiresAt: string | null) => void;
   verifyProSubscription: (email: string) => Promise<{ success: boolean; message: string; customerName?: string }>;
   checkCurrentProStatus: () => Promise<void>;
+  logoutPro: () => void;
 
   // Ações
   setProductCost: (v: number) => void;
@@ -99,7 +104,7 @@ interface AppState {
   setKitQuantity: (qty: number) => void;
   setComparatorPrice: (marketplaceId: string, price: number | null) => void;
   setComparatorRate: (scenario: 'CUSTOM' | 'PROMOTION', marketplaceId: string, field: keyof ComparatorRate, value: number | null) => void;
-  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setCategoryId' | 'setShippingWeightTier' | 'setTaxRegime' | 'setKitQuantity' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding' | 'saveCurrentProduct' | 'loadSavedProduct' | 'deleteSavedProduct' | 'verifyProSubscription' | 'checkCurrentProStatus' | 'setProDetails'>, value: any) => void;
+  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setCategoryId' | 'setShippingWeightTier' | 'setTaxRegime' | 'setKitQuantity' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding' | 'saveCurrentProduct' | 'loadSavedProduct' | 'deleteSavedProduct' | 'verifyProSubscription' | 'checkCurrentProStatus' | 'setProDetails' | 'logoutPro' | 'setProStoreName' | 'setProfileModalOpen'>, value: any) => void;
   saveCurrentProduct: (name: string, snapshot: { profit: number; margin: number; marketplaceName: string }) => void;
   loadSavedProduct: (id: string) => void;
   deleteSavedProduct: (id: string) => void;
@@ -137,10 +142,12 @@ const initialState = {
   savedProducts: [] as SavedProduct[],
   officialRates: {},
   isProModalOpen: false,
+  isProfileModalOpen: false,
   isProUser: false,
   proEmail: null as string | null,
   proCustomerName: null as string | null,
   proExpiresAt: null as string | null,
+  proStoreName: null as string | null,
   hasSeenOnboarding: false,
 };
 
@@ -151,7 +158,15 @@ export const usePricingStore = create<AppState>()(
       hasSeenOnboarding: false,
       setHasSeenOnboarding: (v) => set({ hasSeenOnboarding: v }),
       setProModalOpen: (v) => set({ isProModalOpen: v }),
+      setProfileModalOpen: (v) => set({ isProfileModalOpen: v }),
       setIsProUser: (v) => set({ isProUser: v }),
+      setProStoreName: (name) => set({ proStoreName: name }),
+      logoutPro: () => set({
+        isProUser: false,
+        proEmail: null,
+        proCustomerName: null,
+        proExpiresAt: null,
+      }),
       setProDetails: (email, name, expiresAt) => set({
         proEmail: email,
         proCustomerName: name,
@@ -345,6 +360,7 @@ export const usePricingStore = create<AppState>()(
         proEmail: state.proEmail,
         proCustomerName: state.proCustomerName,
         proExpiresAt: state.proExpiresAt,
+        proStoreName: state.proStoreName,
       })),
       clearData: () => set((state) => ({
         ...initialState,
@@ -355,6 +371,7 @@ export const usePricingStore = create<AppState>()(
         proEmail: state.proEmail,
         proCustomerName: state.proCustomerName,
         proExpiresAt: state.proExpiresAt,
+        proStoreName: state.proStoreName,
       })),
     }),
     {

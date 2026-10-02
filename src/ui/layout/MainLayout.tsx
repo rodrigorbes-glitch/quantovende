@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Package, Sparkles, Menu, X, Smartphone, HelpCircle, Trash2, Link } from 'lucide-react';
+import { Package, Sparkles, Menu, X, Smartphone, HelpCircle, Trash2, Link, User } from 'lucide-react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { OnboardingModal } from '../../features/onboarding/OnboardingModal';
 import { SavedProductsModal } from '../../features/saved-products/SavedProductsModal';
 import { ProPlansModal } from '../../features/subscription/ProPlansModal';
+import { UserProfileModal } from '../../features/subscription/UserProfileModal';
 import { Logo } from '../components/Logo';
 import { InstallPwaBanner, usePwa } from '../components/InstallPwa';
 
@@ -24,6 +25,11 @@ export function MainLayout({ children }: MainLayoutProps) {
       <OnboardingModal forceOpen={forceOnboarding} onClose={() => setForceOnboarding(false)} />
       <SavedProductsModal isOpen={savedProductsOpen} onClose={() => setSavedProductsOpen(false)} />
       <ProPlansModal isOpen={store.isProModalOpen} onClose={() => store.setProModalOpen(false)} />
+      <UserProfileModal 
+        isOpen={store.isProfileModalOpen} 
+        onClose={() => store.setProfileModalOpen(false)} 
+        onOpenPlans={() => store.setProModalOpen(true)} 
+      />
       <InstallPwaBanner />
       
       <header className="border-b border-border/40 bg-card sticky top-0 z-30">
@@ -38,14 +44,35 @@ export function MainLayout({ children }: MainLayoutProps) {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-3">
-            <button
-              onClick={() => store.setProModalOpen(true)}
-              className="text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5 fill-amber-950" />
-              <span>{store.isProUser ? 'PRO Ativo' : 'Seja PRO'}</span>
-            </button>
+          <div className="hidden md:flex items-center gap-2.5">
+            {store.isProUser ? (
+              <button
+                onClick={() => store.setProfileModalOpen(true)}
+                className="text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5"
+                title="Minha Conta PRO & Configurações da Loja"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>{store.proStoreName ? `${store.proStoreName} (PRO)` : 'Minha Conta PRO'}</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => store.setProModalOpen(true)}
+                  className="text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5 fill-amber-950" />
+                  <span>Seja PRO</span>
+                </button>
+                <button
+                  onClick={() => store.setProfileModalOpen(true)}
+                  className="text-xs font-semibold text-foreground/80 hover:text-foreground transition-colors px-2.5 py-1.5 rounded-lg border border-border/70 hover:bg-muted/50 flex items-center gap-1.5"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Entrar</span>
+                </button>
+              </>
+            )}
+
             <button
               onClick={() => setSavedProductsOpen(true)}
               className="text-xs font-semibold text-primary hover:text-primary/90 transition-colors px-2.5 py-1.5 rounded-lg bg-primary/10 flex items-center gap-1.5"
@@ -85,14 +112,33 @@ export function MainLayout({ children }: MainLayoutProps) {
           </div>
 
           {/* Mobile Actions Bar */}
-          <div className="flex md:hidden items-center gap-2">
-            <button
-              onClick={() => store.setProModalOpen(true)}
-              className="text-[11px] font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1"
-            >
-              <Sparkles className="w-3 h-3 fill-amber-950" />
-              <span>{store.isProUser ? 'PRO' : 'Seja PRO'}</span>
-            </button>
+          <div className="flex md:hidden items-center gap-1.5">
+            {store.isProUser ? (
+              <button
+                onClick={() => store.setProfileModalOpen(true)}
+                className="text-[11px] font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1"
+              >
+                <User className="w-3 h-3" />
+                <span>Conta PRO</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => store.setProModalOpen(true)}
+                  className="text-[11px] font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1"
+                >
+                  <Sparkles className="w-3 h-3 fill-amber-950" />
+                  <span>PRO</span>
+                </button>
+                <button
+                  onClick={() => store.setProfileModalOpen(true)}
+                  className="text-[11px] font-semibold text-foreground/80 border border-border px-2 py-1 rounded-lg flex items-center gap-1 bg-card"
+                >
+                  <User className="w-3 h-3" />
+                  <span>Entrar</span>
+                </button>
+              </>
+            )}
 
             <button
               onClick={() => setSavedProductsOpen(true)}
@@ -132,6 +178,16 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <span>📱 Instalar App no Celular</span>
               </button>
             )}
+            <button
+              onClick={() => {
+                store.setProfileModalOpen(true);
+                setMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold text-foreground hover:bg-muted/50 border border-border/40"
+            >
+              <User className="w-4 h-4 text-amber-500" />
+              <span>{store.isProUser ? '👤 Minha Conta PRO' : '👤 Entrar com E-mail'}</span>
+            </button>
             <button
               onClick={() => {
                 setSavedProductsOpen(true);

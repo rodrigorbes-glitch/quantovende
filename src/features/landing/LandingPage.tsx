@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ArrowRight, PieChart, TrendingUp, ShieldCheck, ArrowRightLeft, Sparkles, MessageSquare, Package, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, PieChart, TrendingUp, ShieldCheck, ArrowRightLeft, Sparkles, MessageSquare, Package, CheckCircle2, User } from 'lucide-react';
 import { Logo } from '../../ui/components/Logo';
 import { InstallPwaBanner } from '../../ui/components/InstallPwa';
 import { ProPlansModal } from '../subscription/ProPlansModal';
+import { UserProfileModal } from '../subscription/UserProfileModal';
 import { usePricingStore } from '../../store/usePricingStore';
 
 export function LandingPage() {
@@ -18,6 +19,11 @@ export function LandingPage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
       <InstallPwaBanner />
       <ProPlansModal isOpen={isProOpen} onClose={() => setIsProOpen(false)} />
+      <UserProfileModal 
+        isOpen={store.isProfileModalOpen} 
+        onClose={() => store.setProfileModalOpen(false)} 
+        onOpenPlans={() => setIsProOpen(true)} 
+      />
 
       {/* HEADER */}
       <header className="py-3 px-3 sm:px-6 md:px-12 flex justify-between items-center border-b border-border/40 bg-card/50 backdrop-blur-sm sticky top-0 z-40">
@@ -29,17 +35,37 @@ export function LandingPage() {
             <Logo size="md" />
           </div>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-3">
-          <button
-            onClick={() => setIsProOpen(true)}
-            className="text-[11px] sm:text-sm font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 rounded-full shadow-xs flex items-center gap-1 sm:gap-1.5 shrink-0"
-          >
-            <Sparkles className="w-3.5 h-3.5 fill-amber-950" />
-            <span>{store.isProUser ? 'PRO Ativo' : 'Planos PRO'}</span>
-          </button>
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {store.isProUser ? (
+            <button
+              onClick={() => store.setProfileModalOpen(true)}
+              className="text-[11px] sm:text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full shadow-xs flex items-center gap-1 sm:gap-1.5 shrink-0"
+              title="Minha Conta PRO"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>{store.proStoreName ? `${store.proStoreName} (PRO)` : 'Minha Conta'}</span>
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => setIsProOpen(true)}
+                className="text-[11px] sm:text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full shadow-xs flex items-center gap-1 shrink-0"
+              >
+                <Sparkles className="w-3 h-3 fill-amber-950" />
+                <span>Planos PRO</span>
+              </button>
+              <button
+                onClick={() => store.setProfileModalOpen(true)}
+                className="text-[11px] sm:text-xs font-semibold text-foreground/80 hover:text-foreground border border-border/80 bg-background/60 hover:bg-muted/50 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full flex items-center gap-1 transition-colors shrink-0"
+              >
+                <User className="w-3.5 h-3.5 text-primary" />
+                <span>Entrar</span>
+              </button>
+            </>
+          )}
           <button 
             onClick={navigateToCalculator}
-            className="text-xs sm:text-sm font-semibold bg-primary text-primary-foreground px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full hover:bg-primary/90 transition-all shadow-xs shrink-0"
+            className="text-xs sm:text-sm font-semibold bg-primary text-primary-foreground px-3 sm:px-4 py-1.5 sm:py-2 rounded-full hover:bg-primary/90 transition-all shadow-xs shrink-0"
           >
             <span>{store.isProUser ? 'Acessar Calculadora' : 'Calculadora Grátis'}</span>
           </button>
