@@ -16,7 +16,9 @@ import {
   X,
   CreditCard,
   Crown,
-  ArrowLeft
+  ArrowLeft,
+  Lock,
+  LogOut
 } from 'lucide-react';
 import { MercadoLivreConnect } from '../../features/oauth/MercadoLivreConnect';
 
@@ -34,8 +36,24 @@ interface SubscriptionRow {
 }
 
 export function AdminDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem('qv_admin_authenticated') === 'true';
+  });
+  const [adminEmail, setAdminEmail] = useState<string>(() => {
+    return sessionStorage.getItem('qv_admin_email') || 'rodrigorbes@gmail.com';
+  });
+  const [adminSecret, setAdminSecret] = useState<string>(() => {
+    return sessionStorage.getItem('qv_admin_secret') || '';
+  });
+
+  // Login form states
+  const [loginEmail, setLoginEmail] = useState(adminEmail);
+  const [loginSecret, setLoginSecret] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'integrations'>('subscriptions');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -55,8 +73,8 @@ export function AdminDashboard() {
   const [credentials, setCredentials] = useState<any[]>([]);
   const [rateVersions, setRateVersions] = useState<any[]>([]);
 
-  async function fetchAllData() {
-    if (!supabase) {
+  async function fetchAllData(email = adminEmail, secret = adminSecret) {
+    if (!supabase || !isAuthenticated) {
       setLoading(false);
       return;
     }
@@ -64,10 +82,21 @@ export function AdminDashboard() {
 
     try {
       const [subsRes, credsRes, ratesRes] = await Promise.all([
-        supabase.rpc('get_admin_subscriptions'),
+        supabase.rpc('get_admin_subscriptions', {
+          p_admin_email: email,
+          p_admin_secret: secret
+        }),
         supabase.rpc('get_admin_oauth_status'),
         supabase.from('marketplace_rate_versions').select('id, version, status, created_at, marketplace_rate_profiles!profile_id(marketplace)').order('created_at', { ascending: false }).limit(10)
       ]);
+
+      if (subsRes.error) {
+        console.error('RPC Error:', subsRes.error);
+        if (subsRes.error.message.includes('Acesso Negado')) {
+          handleLogout();
+          return;
+        }
+      }
 
       if (subsRes.data) setSubscriptions(subsRes.data);
       if (credsRes.data) setCredentials(credsRes.data);
@@ -80,8 +109,67 @@ export function AdminDashboard() {
   }
 
   useEffect(() => {
-    fetchAllData();
-  }, []);
+    if (isAuthenticated && adminEmail && adminSecret) {
+      fetchAllData(adminEmail, adminSecret);
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setIsLoggingIn(true);
+
+    const cleanEmail = loginEmail.trim().toLowerCase();
+    const cleanSecret = loginSecret.trim();
+
+    try {
+      if (!supabase) {
+        throw new Error('Supabase não conectado.');
+      }
+
+      const { data, error } = await supabase.rpc('get_admin_subscriptions', {
+        p_admin_email: cleanEmail,
+        p_admin_secret: cleanSecret
+      });
+
+      if (error || !data) {
+        throw new Error(error?.message || 'Credenciais inválidas.');
+      }
+
+      sessionStorage.setItem('qv_admin_authenticated', 'true');
+      sessionStorage.setItem('qv_admin_email', cleanEmail);
+      sessionStorage.setItem('qv_admin_secret', cleanSecret);
+
+      setAdminEmail(cleanEmail);
+      setAdminSecret(cleanSecret);
+      setIsAuthenticated(true);
+      setSubscriptions(data);
+
+      const [credsRes, ratesRes] = await Promise.all([
+        supabase.rpc('get_admin_oauth_status'),
+        supabase.from('marketplace_rate_versions').select('id, version, status, created_at, marketplace_rate_profiles!profile_id(marketplace)').order('created_at', { ascending: false }).limit(10)
+      ]);
+      if (credsRes.data) setCredentials(credsRes.data);
+      if (ratesRes.data) setRateVersions(ratesRes.data);
+
+    } catch (err: any) {
+      setAuthError('Acesso Negado: E-mail ou senha administrativa incorretos.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('qv_admin_authenticated');
+    sessionStorage.removeItem('qv_admin_email');
+    sessionStorage.removeItem('qv_admin_secret');
+    setIsAuthenticated(false);
+    setAdminSecret('');
+    setLoginSecret('');
+    setSubscriptions([]);
+    setCredentials([]);
+    setRateVersions([]);
+  };
 
   // Filtered subscriptions
   const filteredSubscriptions = useMemo(() => {
@@ -119,6 +207,8 @@ export function AdminDashboard() {
     if (!window.confirm(confirmMsg)) return;
 
     const { error } = await supabase.rpc('admin_toggle_subscription_status', {
+      p_admin_email: adminEmail,
+      p_admin_secret: adminSecret,
       p_email: sub.email,
       p_new_status: newStatus
     });
@@ -137,6 +227,8 @@ export function AdminDashboard() {
     if (!window.confirm(`Confirmar extensão de validade (${label}) para ${email}?`)) return;
 
     const { error } = await supabase.rpc('admin_extend_subscription', {
+      p_admin_email: adminEmail,
+      p_admin_secret: adminSecret,
       p_email: email,
       p_days: days
     });
@@ -171,6 +263,8 @@ export function AdminDashboard() {
       }
 
       const { error } = await supabase.rpc('admin_upsert_subscription', {
+        p_admin_email: adminEmail,
+        p_admin_secret: adminSecret,
         p_email: formEmail.trim().toLowerCase(),
         p_name: formName.trim() || 'Assinante Manual',
         p_status: 'active',
@@ -226,6 +320,94 @@ export function AdminDashboard() {
     }
   };
 
+  // If not authenticated, render the high-security lock screen
+  if (!isAuthenticated) {
+    return (
+      <MainLayout>
+        <div className="min-h-[75vh] flex items-center justify-center p-4">
+          <Card className="w-full max-w-md p-8 border-border/80 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-emerald-500 to-indigo-500" />
+            
+            <div className="text-center space-y-2 mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center shadow-inner">
+                <Lock className="w-7 h-7" />
+              </div>
+              <h1 className="text-2xl font-black text-foreground tracking-tight">
+                Área Restrita do Proprietário
+              </h1>
+              <p className="text-xs text-foreground/60 leading-relaxed max-w-xs mx-auto">
+                Acesso estritamente restrito. Digite suas credenciais master para desbloquear o painel administrativo.
+              </p>
+            </div>
+
+            {authError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-2 text-xs font-semibold text-rose-600 dark:text-rose-400 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{authError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">E-mail Master</label>
+                <input
+                  type="email"
+                  required
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="rodrigorbes@gmail.com"
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-medium"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">Senha Master</label>
+                <input
+                  type="password"
+                  required
+                  autoFocus
+                  value={loginSecret}
+                  onChange={(e) => setLoginSecret(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-mono tracking-widest"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isLoggingIn || !loginSecret}
+                className="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Verificando Credenciais...</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    <span>Desbloquear Painel</span>
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 pt-5 border-t border-border/60 text-center">
+              <button
+                type="button"
+                onClick={() => { window.location.href = '/calculadora'; }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground/50 hover:text-foreground transition-colors group cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+                <span>Voltar para a Calculadora</span>
+              </button>
+            </div>
+          </Card>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
@@ -260,12 +442,23 @@ export function AdminDashboard() {
             <Button 
               variant="outline"
               size="sm"
-              onClick={fetchAllData}
+              onClick={() => fetchAllData()}
               disabled={loading}
               className="flex items-center gap-1.5"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span>Atualizar</span>
+            </Button>
+
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-rose-600 border-rose-500/20 hover:bg-rose-500/10"
+              title="Bloquear painel e sair da sessão"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sair</span>
             </Button>
 
             {activeTab === 'subscriptions' && (
