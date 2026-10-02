@@ -26,16 +26,16 @@ export function ProPlansModal({ isOpen, onClose }: ProPlansModalProps) {
   if (!isOpen) return null;
 
   const handleCheckout = () => {
-    // Links customizáveis (ex: Kiwify, Mercado Pago, Asaas, Hotmart)
-    const envMonthly = (import.meta as any).env?.VITE_CHECKOUT_URL_MONTHLY;
+    // Link oficial Asaas para recorrência mensal (R$ 29,90)
+    const ASAAS_MONTHLY_DEFAULT = 'https://www.asaas.com/000/c/y5ayqjf3pzccrqga';
+    const envMonthly = (import.meta as any).env?.VITE_CHECKOUT_URL_MONTHLY || ASAAS_MONTHLY_DEFAULT;
     const envAnnual = (import.meta as any).env?.VITE_CHECKOUT_URL_ANNUAL;
 
-    const targetUrl = billingCycle === 'annual' ? envAnnual : envMonthly;
+    const targetUrl = billingCycle === 'annual' ? (envAnnual || envMonthly) : envMonthly;
 
     if (targetUrl) {
       window.open(targetUrl, '_blank');
     } else {
-      // Mensagem orientando o seller ou abrindo canal direto
       const msg = encodeURIComponent(
         `Olá! Quero assinar o QuantoVende PRO no plano ${billingCycle === 'annual' ? 'Anual (R$ 19,90/mês)' : 'Mensal (R$ 29,90/mês)'}. Como faço para ativar?`
       );
