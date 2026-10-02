@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Package, Sparkles, Menu, X, Smartphone, HelpCircle, Trash2, Link, User } from 'lucide-react';
+import { Package, Sparkles, Menu, X, Smartphone, HelpCircle, Trash2, User, Crown } from 'lucide-react';
 import { usePricingStore } from '../../store/usePricingStore';
 import { OnboardingModal } from '../../features/onboarding/OnboardingModal';
 import { SavedProductsModal } from '../../features/saved-products/SavedProductsModal';
@@ -85,12 +85,16 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </span>
               )}
             </button>
-            <button
-              onClick={() => { window.location.href = '/integracoes'; }}
-              className="text-xs font-medium text-foreground/60 hover:text-foreground transition-colors px-2 py-1.5"
-            >
-              Integrações
-            </button>
+            {store.proEmail === 'rodrigorbes@gmail.com' && (
+              <button
+                onClick={() => { window.location.href = '/admin'; }}
+                className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-500 transition-colors px-2.5 py-1.5 rounded-lg bg-amber-500/10 flex items-center gap-1"
+                title="Painel Administrativo"
+              >
+                <Crown className="w-3.5 h-3.5" />
+                <span>Admin</span>
+              </button>
+            )}
             <button
               onClick={() => setForceOnboarding(true)}
               className="text-xs font-medium text-foreground/60 hover:text-foreground transition-colors px-2 py-1.5"
@@ -198,16 +202,18 @@ export function MainLayout({ children }: MainLayoutProps) {
               <Package className="w-4 h-4 text-primary" />
               <span>Meus Produtos Salvos ({store.savedProducts?.length || 0})</span>
             </button>
-            <button
-              onClick={() => {
-                window.location.href = '/integracoes';
-                setMobileMenuOpen(false);
-              }}
-              className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-medium text-foreground hover:bg-muted/50"
-            >
-              <Link className="w-4 h-4 text-foreground/60" />
-              <span>Integrações (OAuth)</span>
-            </button>
+            {store.proEmail === 'rodrigorbes@gmail.com' && (
+              <button
+                onClick={() => {
+                  window.location.href = '/admin';
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10"
+              >
+                <Crown className="w-4 h-4" />
+                <span>Painel Admin (Proprietário)</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 setForceOnboarding(true);

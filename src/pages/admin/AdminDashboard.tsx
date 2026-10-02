@@ -15,8 +15,10 @@ import {
   ShieldCheck, 
   X,
   CreditCard,
-  Crown
+  Crown,
+  ArrowLeft
 } from 'lucide-react';
+import { MercadoLivreConnect } from '../../features/oauth/MercadoLivreConnect';
 
 interface SubscriptionRow {
   id: string;
@@ -228,6 +230,17 @@ export function AdminDashboard() {
     <MainLayout>
       <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
         
+        {/* Back Link */}
+        <div>
+          <button
+            onClick={() => { window.location.href = '/calculadora'; }}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground/60 hover:text-foreground transition-colors group cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+            <span>Voltar para a Calculadora</span>
+          </button>
+        </div>
+
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-5">
           <div>
@@ -577,6 +590,14 @@ export function AdminDashboard() {
                   </div>
                 )}
               </Card>
+            </div>
+
+            {/* Conexão OAuth Mercado Livre */}
+            <div className="pt-6 border-t border-border">
+              <h3 className="font-bold text-sm text-foreground mb-4">Conectar Nova Conta Oficial Mercado Livre (OAuth)</h3>
+              <div className="max-w-md">
+                <MercadoLivreConnect />
+              </div>
             </div>
           </div>
         )}

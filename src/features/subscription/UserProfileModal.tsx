@@ -12,7 +12,8 @@ import {
   Store, 
   Check, 
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  Crown
 } from 'lucide-react';
 
 interface UserProfileModalProps {
@@ -166,8 +167,22 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
                 </div>
               </form>
 
+              {/* Admin Panel Shortcut (Only visible for admin) */}
+              {store.proEmail === 'rodrigorbes@gmail.com' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = '/admin';
+                  }}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all hover:scale-[1.01]"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>Acessar Painel Administrativo (Admin)</span>
+                </button>
+              )}
+
               {/* Disconnect Action */}
-              <div className="pt-2 flex justify-end">
+              <div className="pt-1 flex justify-end">
                 <button
                   type="button"
                   onClick={handleLogout}
