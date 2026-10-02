@@ -40,6 +40,8 @@ export default function App() {
 
     // Sync official rates once when app loads
     usePricingStore.getState().syncOfficialRates();
+    // Revalida status da assinatura PRO em segundo plano
+    usePricingStore.getState().checkCurrentProStatus();
 
     return () => window.removeEventListener('popstate', onLocationChange);
   }, []);

@@ -82,6 +82,12 @@ interface AppState {
   setProModalOpen: (v: boolean) => void;
   isProUser: boolean;
   setIsProUser: (v: boolean) => void;
+  proEmail: string | null;
+  proCustomerName: string | null;
+  proExpiresAt: string | null;
+  setProDetails: (email: string | null, name: string | null, expiresAt: string | null) => void;
+  verifyProSubscription: (email: string) => Promise<{ success: boolean; message: string; customerName?: string }>;
+  checkCurrentProStatus: () => Promise<void>;
 
   // Ações
   setProductCost: (v: number) => void;
@@ -93,7 +99,7 @@ interface AppState {
   setKitQuantity: (qty: number) => void;
   setComparatorPrice: (marketplaceId: string, price: number | null) => void;
   setComparatorRate: (scenario: 'CUSTOM' | 'PROMOTION', marketplaceId: string, field: keyof ComparatorRate, value: number | null) => void;
-  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setCategoryId' | 'setShippingWeightTier' | 'setTaxRegime' | 'setKitQuantity' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding' | 'saveCurrentProduct' | 'loadSavedProduct' | 'deleteSavedProduct'>, value: any) => void;
+  setAdvancedField: (field: keyof Omit<AppState, 'setProductCost' | 'setSalePrice' | 'setMarketplace' | 'setCategoryId' | 'setShippingWeightTier' | 'setTaxRegime' | 'setKitQuantity' | 'setAdvancedField' | 'clearData' | 'resetAnalysis' | 'setComparatorPrice' | 'setComparatorRate' | 'setHasSeenOnboarding' | 'saveCurrentProduct' | 'loadSavedProduct' | 'deleteSavedProduct' | 'verifyProSubscription' | 'checkCurrentProStatus' | 'setProDetails'>, value: any) => void;
   saveCurrentProduct: (name: string, snapshot: { profit: number; margin: number; marketplaceName: string }) => void;
   loadSavedProduct: (id: string) => void;
   deleteSavedProduct: (id: string) => void;
@@ -132,16 +138,104 @@ const initialState = {
   officialRates: {},
   isProModalOpen: false,
   isProUser: false,
+  proEmail: null as string | null,
+  proCustomerName: null as string | null,
+  proExpiresAt: null as string | null,
 };
 
 export const usePricingStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
       hasSeenOnboarding: false,
       setHasSeenOnboarding: (v) => set({ hasSeenOnboarding: v }),
       setProModalOpen: (v) => set({ isProModalOpen: v }),
       setIsProUser: (v) => set({ isProUser: v }),
+      setProDetails: (email, name, expiresAt) => set({
+        proEmail: email,
+        proCustomerName: name,
+        proExpiresAt: expiresAt,
+        isProUser: !!email && !!expiresAt && new Date(expiresAt) > new Date()
+      }),
+      verifyProSubscription: async (email: string) => {
+        const cleanEmail = email.trim().toLowerCase();
+        if (!cleanEmail || !cleanEmail.includes('@')) {
+          return { success: false, message: 'Por favor, digite um e-mail válido.' };
+        }
+
+        try {
+          const { supabase } = await import('../core/supabase/client');
+          if (!supabase) {
+            return { success: false, message: 'Serviço de validação indisponível no momento.' };
+          }
+
+          const { data, error } = await supabase.rpc('check_pro_subscription', {
+            lookup_email: cleanEmail
+          });
+
+          if (error) {
+            console.error('Erro ao verificar assinatura:', error);
+            return { success: false, message: 'Erro ao consultar status da assinatura no banco.' };
+          }
+
+          const subscription = Array.isArray(data) ? data[0] : data;
+
+          if (subscription && subscription.is_active) {
+            set({
+              isProUser: true,
+              proEmail: cleanEmail,
+              proCustomerName: subscription.customer_name || null,
+              proExpiresAt: subscription.expires_at || null,
+            });
+            return { 
+              success: true, 
+              message: 'Assinatura PRO identificada com sucesso!',
+              customerName: subscription.customer_name 
+            };
+          } else {
+            return { 
+              success: false, 
+              message: 'Nenhuma assinatura PRO ativa encontrada para este e-mail. Se acabou de pagar via boleto, aguarde a compensação bancária.' 
+            };
+          }
+        } catch (err: any) {
+          return { success: false, message: err?.message || 'Falha de conexão ao validar.' };
+        }
+      },
+      checkCurrentProStatus: async () => {
+        const currentEmail = get().proEmail;
+        if (!currentEmail) return;
+
+        try {
+          const { supabase } = await import('../core/supabase/client');
+          if (!supabase) return;
+
+          const { data, error } = await supabase.rpc('check_pro_subscription', {
+            lookup_email: currentEmail
+          });
+
+          if (error) return;
+
+          const subscription = Array.isArray(data) ? data[0] : data;
+          if (subscription && subscription.is_active) {
+            set({
+              isProUser: true,
+              proExpiresAt: subscription.expires_at,
+              proCustomerName: subscription.customer_name,
+            });
+          } else {
+            // Assinatura expirou ou foi cancelada no Asaas
+            set({
+              isProUser: false,
+              proEmail: null,
+              proExpiresAt: null,
+              proCustomerName: null,
+            });
+          }
+        } catch (e) {
+          console.warn('Erro ao checar status PRO em segundo plano:', e);
+        }
+      },
       setProductCost: (v) => set({ productCost: v }),
       setSalePrice: (v) => set({ salePrice: v }),
       setMarketplace: (id, conditionId) => set({ 
@@ -247,6 +341,9 @@ export const usePricingStore = create<AppState>()(
         savedProducts: state.savedProducts,
         officialRates: state.officialRates,
         isProUser: state.isProUser,
+        proEmail: state.proEmail,
+        proCustomerName: state.proCustomerName,
+        proExpiresAt: state.proExpiresAt,
       })),
       clearData: () => set((state) => ({
         ...initialState,
@@ -254,6 +351,9 @@ export const usePricingStore = create<AppState>()(
         savedProducts: state.savedProducts,
         officialRates: state.officialRates,
         isProUser: state.isProUser,
+        proEmail: state.proEmail,
+        proCustomerName: state.proCustomerName,
+        proExpiresAt: state.proExpiresAt,
       })),
     }),
     {
