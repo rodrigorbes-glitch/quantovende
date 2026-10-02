@@ -26,10 +26,14 @@ export function OnboardingModal({ forceOpen = false, onClose }: { forceOpen?: bo
   const store = usePricingStore();
   const [step, setStep] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(true);
 
   useEffect(() => {
+    // Verificação dupla: store ou localStorage
+    const isDismissed = typeof window !== 'undefined' && localStorage.getItem('quantovende_onboarding_dismissed') === 'true';
+
     // Only open automatically if the user hasn't seen it and it's not forced open
-    if (!store.hasSeenOnboarding && !forceOpen) {
+    if (!store.hasSeenOnboarding && !isDismissed && !forceOpen) {
       setIsOpen(true);
     } else if (forceOpen) {
       setIsOpen(true);
@@ -41,13 +45,21 @@ export function OnboardingModal({ forceOpen = false, onClose }: { forceOpen?: bo
     if (step < STEPS.length - 1) {
       setStep(s => s + 1);
     } else {
-      handleClose(true);
+      handleClose();
     }
   };
 
-  const handleClose = (markSeen: boolean = false) => {
-    if (markSeen && !store.hasSeenOnboarding) {
+  const handleClose = () => {
+    if (dontShowAgain) {
       store.setHasSeenOnboarding(true);
+      try {
+        localStorage.setItem('quantovende_onboarding_dismissed', 'true');
+      } catch {}
+    } else {
+      store.setHasSeenOnboarding(false);
+      try {
+        localStorage.removeItem('quantovende_onboarding_dismissed');
+      } catch {}
     }
     setIsOpen(false);
     if (onClose) onClose();
@@ -59,7 +71,7 @@ export function OnboardingModal({ forceOpen = false, onClose }: { forceOpen?: bo
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
       <Card className="w-full max-w-md relative shadow-2xl animate-in zoom-in-95">
         <button 
-          onClick={() => handleClose(false)} 
+          onClick={handleClose} 
           className="absolute top-4 right-4 text-foreground/40 hover:text-foreground transition-colors p-2"
           aria-label="Fechar introdução"
         >
@@ -90,6 +102,18 @@ export function OnboardingModal({ forceOpen = false, onClose }: { forceOpen?: bo
                   className={cn("w-2 h-2 rounded-full transition-all", step === i ? "bg-primary w-4" : "bg-primary/20")}
                 />
               ))}
+            </div>
+
+            <div className="pt-3 border-t border-border/50 flex items-center justify-center">
+              <label className="flex items-center gap-2 text-xs text-foreground/60 cursor-pointer select-none hover:text-foreground transition-colors">
+                <input
+                  type="checkbox"
+                  checked={dontShowAgain}
+                  onChange={(e) => setDontShowAgain(e.target.checked)}
+                  className="rounded border-border text-primary focus:ring-primary/20 w-3.5 h-3.5"
+                />
+                <span>Não exibir este tutorial automaticamente</span>
+              </label>
             </div>
           </div>
         </CardContent>

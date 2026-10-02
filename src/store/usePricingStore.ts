@@ -141,6 +141,7 @@ const initialState = {
   proEmail: null as string | null,
   proCustomerName: null as string | null,
   proExpiresAt: null as string | null,
+  hasSeenOnboarding: false,
 };
 
 export const usePricingStore = create<AppState>()(

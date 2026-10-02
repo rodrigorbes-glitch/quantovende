@@ -3,8 +3,10 @@ import { ArrowRight, PieChart, TrendingUp, ShieldCheck, ArrowRightLeft, Sparkles
 import { Logo } from '../../ui/components/Logo';
 import { InstallPwaBanner } from '../../ui/components/InstallPwa';
 import { ProPlansModal } from '../subscription/ProPlansModal';
+import { usePricingStore } from '../../store/usePricingStore';
 
 export function LandingPage() {
+  const store = usePricingStore();
   const [isProOpen, setIsProOpen] = useState(false);
 
   const navigateToCalculator = () => {
@@ -33,14 +35,13 @@ export function LandingPage() {
             className="text-[11px] sm:text-sm font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 rounded-full shadow-xs flex items-center gap-1 sm:gap-1.5 shrink-0"
           >
             <Sparkles className="w-3.5 h-3.5 fill-amber-950" />
-            <span className="hidden sm:inline">Planos </span><span>PRO</span>
+            <span>{store.isProUser ? 'PRO Ativo' : 'Planos PRO'}</span>
           </button>
           <button 
             onClick={navigateToCalculator}
             className="text-xs sm:text-sm font-semibold bg-primary text-primary-foreground px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full hover:bg-primary/90 transition-all shadow-xs shrink-0"
           >
-            <span>Calculadora</span>
-            <span className="hidden sm:inline"> Grátis</span>
+            <span>{store.isProUser ? 'Acessar Calculadora' : 'Calculadora Grátis'}</span>
           </button>
         </div>
       </header>
@@ -67,7 +68,7 @@ export function LandingPage() {
               onClick={navigateToCalculator}
               className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
             >
-              <span>Calcular meu preço agora</span>
+              <span>{store.isProUser ? 'Acessar Minha Calculadora PRO' : 'Calcular meu preço agora'}</span>
               <ArrowRight className="w-5 h-5" />
             </button>
             <a 
