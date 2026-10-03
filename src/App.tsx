@@ -9,6 +9,7 @@ import { Sparkles, X, CheckCircle2 } from 'lucide-react';
 import { usePricingStore } from './store/usePricingStore';
 
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { supabase } from './core/supabase/client';
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -43,7 +44,24 @@ export default function App() {
     // Revalida status da assinatura PRO em segundo plano
     usePricingStore.getState().checkCurrentProStatus();
 
-    return () => window.removeEventListener('popstate', onLocationChange);
+    // Ouvinte para Login Social com Google (OAuth)
+    const { data: authListener } = supabase?.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user?.email && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        const userEmail = session.user.email.toLowerCase();
+        const store = usePricingStore.getState();
+        if (store.proEmail !== userEmail) {
+          const res = await store.verifyProSubscription(userEmail);
+          if (res.success) {
+            setShowProCelebration(true);
+          }
+        }
+      }
+    }) || { data: { subscription: null } };
+
+    return () => {
+      window.removeEventListener('popstate', onLocationChange);
+      authListener?.subscription?.unsubscribe();
+    };
   }, []);
 
   const renderCelebration = () => {
