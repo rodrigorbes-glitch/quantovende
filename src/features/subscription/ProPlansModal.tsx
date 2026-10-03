@@ -15,7 +15,8 @@ import {
   Mail,
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  Lock
 } from 'lucide-react';
 
 interface ProPlansModalProps {
@@ -161,11 +162,46 @@ export function ProPlansModal({ isOpen, onClose }: ProPlansModalProps) {
 
             <button
               onClick={handleCheckout}
-              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3.5 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 shrink-0 group hover:scale-[1.02]"
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3.5 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 shrink-0 group hover:scale-[1.02] cursor-pointer"
             >
               <span>Garantir Acesso PRO</span>
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </button>
+          </div>
+
+          {/* Selos de Confiança e Segurança Bancária Asaas */}
+          <div className="bg-muted/40 border border-border/70 rounded-2xl p-3.5 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Pagamento 100% Protegido</span>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-foreground/60 font-semibold">
+                <span className="flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-emerald-600" />
+                  SSL 256-bit
+                </span>
+                <span>•</span>
+                <span>PCI-DSS Nível 1</span>
+                <span>•</span>
+                <span>Banco Central</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-foreground/80 font-medium">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 text-xs font-bold">✓</div>
+                <span>Processamento Oficial Asaas</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 text-xs font-bold">✓</div>
+                <span>Cartão em até 12x ou Pix</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 text-xs font-bold">✓</div>
+                <span>Ativação Imediata da Conta</span>
+              </div>
+            </div>
           </div>
 
           {/* Already a Subscriber? Email Activation */}
