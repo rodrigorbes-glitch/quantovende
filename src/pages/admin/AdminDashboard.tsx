@@ -18,7 +18,10 @@ import {
   Crown,
   ArrowLeft,
   Lock,
-  LogOut
+  LogOut,
+  Eye,
+  EyeOff,
+  KeyRound
 } from 'lucide-react';
 import { MercadoLivreConnect } from '../../features/oauth/MercadoLivreConnect';
 
@@ -49,8 +52,62 @@ export function AdminDashboard() {
   // Login form states
   const [loginEmail, setLoginEmail] = useState(adminEmail);
   const [loginSecret, setLoginSecret] = useState('');
+  const [showLoginSecret, setShowLoginSecret] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Change Password Modal States
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [currPwd, setCurrPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [showCurrPwd, setShowCurrPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdSuccess, setPwdSuccess] = useState<string | null>(null);
+  const [isSavingPwd, setIsSavingPwd] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwdError(null);
+    setPwdSuccess(null);
+
+    if (newPwd !== confirmPwd) {
+      setPwdError('A nova senha e a confirmação não coincidem.');
+      return;
+    }
+    if (newPwd.length < 4) {
+      setPwdError('A nova senha deve ter no mínimo 4 caracteres.');
+      return;
+    }
+
+    setIsSavingPwd(true);
+    try {
+      if (!supabase) throw new Error('Supabase não conectado.');
+      const { error } = await supabase.rpc('admin_change_password', {
+        p_admin_email: adminEmail,
+        p_current_secret: currPwd,
+        p_new_secret: newPwd
+      });
+
+      if (error) throw error;
+
+      sessionStorage.setItem('qv_admin_secret', newPwd);
+      setAdminSecret(newPwd);
+      setPwdSuccess('Senha master alterada com sucesso!');
+      setTimeout(() => {
+        setIsChangePasswordOpen(false);
+        setCurrPwd('');
+        setNewPwd('');
+        setConfirmPwd('');
+        setPwdSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      setPwdError(err.message || 'Falha ao alterar senha.');
+    } finally {
+      setIsSavingPwd(false);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'integrations'>('subscriptions');
   const [loading, setLoading] = useState(false);
@@ -362,15 +419,25 @@ export function AdminDashboard() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-foreground">Senha Master</label>
-                <input
-                  type="password"
-                  required
-                  autoFocus
-                  value={loginSecret}
-                  onChange={(e) => setLoginSecret(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-mono tracking-widest"
-                />
+                <div className="relative">
+                  <input
+                    type={showLoginSecret ? 'text' : 'password'}
+                    required
+                    autoFocus
+                    value={loginSecret}
+                    onChange={(e) => setLoginSecret(e.target.value)}
+                    placeholder={showLoginSecret ? 'Digite sua senha' : '••••••••'}
+                    className="w-full text-xs pl-3.5 pr-10 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-mono tracking-widest"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginSecret(!showLoginSecret)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-foreground p-1 transition-colors"
+                    title={showLoginSecret ? 'Ocultar senha' : 'Ver senha digitada'}
+                  >
+                    {showLoginSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <Button
@@ -448,6 +515,17 @@ export function AdminDashboard() {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span>Atualizar</span>
+            </Button>
+
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => setIsChangePasswordOpen(true)}
+              className="flex items-center gap-1.5 text-foreground/80 hover:text-foreground"
+              title="Trocar senha administrativa"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+              <span>Senha</span>
             </Button>
 
             <Button 
@@ -881,6 +959,120 @@ export function AdminDashboard() {
                     className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                   >
                     {isSavingSub ? 'Salvando...' : 'Liberar PRO Agora'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: ALTERAR SENHA MASTER */}
+        {isChangePasswordOpen && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div 
+              className="bg-card text-foreground border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-5 bg-gradient-to-r from-amber-600 to-amber-700 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <KeyRound className="w-5 h-5" />
+                  <div>
+                    <h3 className="font-bold text-base">Alterar Senha Master</h3>
+                    <p className="text-xs text-amber-100 mt-0.5">Atualize a chave de segurança do painel administrativo</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsChangePasswordOpen(false)}
+                  className="p-1 rounded-full hover:bg-white/10 text-white/70 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleChangePassword} className="p-6 space-y-4">
+                {pwdError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-2 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{pwdError}</span>
+                  </div>
+                )}
+
+                {pwdSuccess && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{pwdSuccess}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Senha Atual *</label>
+                  <div className="relative">
+                    <input
+                      type={showCurrPwd ? 'text' : 'password'}
+                      required
+                      value={currPwd}
+                      onChange={(e) => setCurrPwd(e.target.value)}
+                      placeholder="Sua senha atual"
+                      className="w-full text-xs pl-3.5 pr-10 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-mono tracking-widest"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrPwd(!showCurrPwd)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-foreground p-1 transition-colors"
+                    >
+                      {showCurrPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Nova Senha *</label>
+                  <div className="relative">
+                    <input
+                      type={showNewPwd ? 'text' : 'password'}
+                      required
+                      value={newPwd}
+                      onChange={(e) => setNewPwd(e.target.value)}
+                      placeholder="Mínimo 4 caracteres"
+                      className="w-full text-xs pl-3.5 pr-10 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-mono tracking-widest"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPwd(!showNewPwd)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-foreground p-1 transition-colors"
+                    >
+                      {showNewPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground">Confirmar Nova Senha *</label>
+                  <input
+                    type={showNewPwd ? 'text' : 'password'}
+                    required
+                    value={confirmPwd}
+                    onChange={(e) => setConfirmPwd(e.target.value)}
+                    placeholder="Repita a nova senha"
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber-500/30 font-mono tracking-widest"
+                  />
+                </div>
+
+                <div className="pt-3 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsChangePasswordOpen(false)}
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSavingPwd || !currPwd || !newPwd}
+                    className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold"
+                  >
+                    {isSavingPwd ? 'Salvando...' : 'Salvar Nova Senha'}
                   </Button>
                 </div>
               </form>

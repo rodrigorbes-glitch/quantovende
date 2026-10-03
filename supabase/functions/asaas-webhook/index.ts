@@ -89,10 +89,40 @@ serve(async (req) => {
         });
       }
 
-      // Calcula data de expiração: 35 dias a partir do pagamento (ou do vencimento da fatura)
-      const baseDate = payment.clientPaymentDate || payment.paymentDate || new Date();
+      // Calcula data de expiração inteligente:
+      // Se valor >= R$ 100 ou descrição contiver "anual", concede 375 dias (1 ano + 10 dias de carência).
+      // Caso contrário, considera plano mensal e concede 35 dias (30 dias + 5 dias de carência).
+      const paymentValue = Number(payment.value) || 0;
+      const paymentDesc = (payment.description || "").toLowerCase();
+      const paymentCycle = (payment.cycle || "").toUpperCase();
+      
+      const isAnnual = paymentValue >= 100 || 
+                       paymentDesc.includes("anual") || 
+                       paymentDesc.includes("ano") || 
+                       paymentDesc.includes("yearly") || 
+                       paymentCycle === "YEARLY" || 
+                       paymentCycle === "ANNUALLY";
+
+      const graceDays = isAnnual ? 375 : 35;
+
+      // Verifica se o usuário já possui validade futura para não perder dias restantes
+      const { data: existingSub } = await supabaseAdmin
+        .from('pro_subscriptions')
+        .select('expires_at')
+        .eq('email', customerEmail)
+        .maybeSingle();
+
+      const now = new Date();
+      let baseDate = new Date(payment.clientPaymentDate || payment.paymentDate || now);
+      if (existingSub?.expires_at) {
+        const existingExpires = new Date(existingSub.expires_at);
+        if (existingExpires > baseDate) {
+          baseDate = existingExpires;
+        }
+      }
+
       const expiresAt = new Date(baseDate);
-      expiresAt.setDate(expiresAt.getDate() + 35); // 30 dias + 5 dias de carência
+      expiresAt.setDate(expiresAt.getDate() + graceDays);
 
       // Upsert no banco de dados Supabase
       const { error: upsertError } = await supabaseAdmin

@@ -14,7 +14,7 @@ export function Logo({
   isPrint = false 
 }: LogoProps) {
   const sizeMap = {
-    sm: { img: 'w-6 h-6', text: 'text-lg' },
+    sm: { img: 'w-5 h-5 sm:w-6 sm:h-6', text: 'text-base sm:text-lg' },
     md: { img: 'w-8 h-8', text: 'text-xl' },
     lg: { img: 'w-10 h-10', text: 'text-2xl' },
   };
@@ -22,7 +22,7 @@ export function Logo({
   const currentSize = sizeMap[size];
 
   return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
+    <div className={`flex items-center gap-1.5 sm:gap-2.5 ${className}`}>
       <img
         src="/icon-192.png"
         alt="QuantoVende"

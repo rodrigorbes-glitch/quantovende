@@ -26,7 +26,7 @@ export function LandingPage() {
       />
 
       {/* HEADER */}
-      <header className="py-3 px-3 sm:px-6 md:px-12 flex justify-between items-center border-b border-border/40 bg-card/50 backdrop-blur-sm sticky top-0 z-40">
+      <header className="py-2.5 sm:py-3 px-2.5 sm:px-6 md:px-12 flex justify-between items-center border-b border-border/40 bg-card/50 backdrop-blur-sm sticky top-0 z-40 w-full">
         <div className="cursor-pointer shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <div className="block sm:hidden">
             <Logo size="sm" />
@@ -35,11 +35,11 @@ export function LandingPage() {
             <Logo size="md" />
           </div>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-2.5">
+        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
           {store.isProUser ? (
             <button
               onClick={() => store.setProfileModalOpen(true)}
-              className="text-[11px] sm:text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full shadow-xs flex items-center gap-1 sm:gap-1.5 shrink-0"
+              className="text-[11px] sm:text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-2 sm:px-3.5 py-1 sm:py-2 rounded-full shadow-xs flex items-center gap-1 sm:gap-1.5 shrink-0"
               title="Minha Conta PRO"
             >
               <User className="w-3.5 h-3.5" />
@@ -49,14 +49,14 @@ export function LandingPage() {
             <>
               <button
                 onClick={() => setIsProOpen(true)}
-                className="text-[11px] sm:text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full shadow-xs flex items-center gap-1 shrink-0"
+                className="text-[11px] sm:text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all px-2 sm:px-3 py-1 sm:py-2 rounded-full shadow-xs flex items-center gap-1 shrink-0"
               >
                 <Sparkles className="w-3 h-3 fill-amber-950" />
-                <span>Planos PRO</span>
+                <span><span className="hidden sm:inline">Planos </span>PRO</span>
               </button>
               <button
                 onClick={() => store.setProfileModalOpen(true)}
-                className="text-[11px] sm:text-xs font-semibold text-foreground/80 hover:text-foreground border border-border/80 bg-background/60 hover:bg-muted/50 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full flex items-center gap-1 transition-colors shrink-0"
+                className="text-[11px] sm:text-xs font-semibold text-foreground/80 hover:text-foreground border border-border/80 bg-background/60 hover:bg-muted/50 px-2 sm:px-3 py-1 sm:py-2 rounded-full flex items-center gap-1 transition-colors shrink-0"
               >
                 <User className="w-3.5 h-3.5 text-primary" />
                 <span>Entrar</span>
@@ -65,9 +65,10 @@ export function LandingPage() {
           )}
           <button 
             onClick={navigateToCalculator}
-            className="text-xs sm:text-sm font-semibold bg-primary text-primary-foreground px-3 sm:px-4 py-1.5 sm:py-2 rounded-full hover:bg-primary/90 transition-all shadow-xs shrink-0"
+            className="text-[11px] sm:text-sm font-semibold bg-primary text-primary-foreground px-2.5 sm:px-4 py-1 sm:py-2 rounded-full hover:bg-primary/90 transition-all shadow-xs shrink-0 flex items-center gap-1"
           >
-            <span>{store.isProUser ? 'Acessar Calculadora' : 'Calculadora Grátis'}</span>
+            <span className="sm:hidden">{store.isProUser ? 'Calculadora' : 'Calculadora'}</span>
+            <span className="hidden sm:inline">{store.isProUser ? 'Acessar Calculadora' : 'Calculadora Grátis'}</span>
           </button>
         </div>
       </header>

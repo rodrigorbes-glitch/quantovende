@@ -33,7 +33,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       <InstallPwaBanner />
       
       <header className="border-b border-border/40 bg-card sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
           <div className="cursor-pointer shrink-0" onClick={() => { window.location.href = '/'; }}>
             <div className="block sm:hidden">
               <Logo size="sm" />
@@ -116,7 +116,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           </div>
 
           {/* Mobile Actions Bar */}
-          <div className="flex md:hidden items-center gap-1.5">
+          <div className="flex md:hidden items-center gap-1.5 shrink-0">
             {store.isProUser ? (
               <button
                 onClick={() => store.setProfileModalOpen(true)}
