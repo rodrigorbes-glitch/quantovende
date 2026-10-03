@@ -90,7 +90,7 @@ interface AppState {
   proStoreName: string | null;
   setProStoreName: (name: string | null) => void;
   setProDetails: (email: string | null, name: string | null, expiresAt: string | null) => void;
-  verifyProSubscription: (email: string) => Promise<{ success: boolean; message: string; customerName?: string }>;
+  verifyProSubscription: (email: string, password?: string) => Promise<{ success: boolean; message: string; customerName?: string; code?: string }>;
   checkCurrentProStatus: () => Promise<void>;
   logoutPro: () => void;
 
@@ -173,7 +173,7 @@ export const usePricingStore = create<AppState>()(
         proExpiresAt: expiresAt,
         isProUser: !!email && !!expiresAt && new Date(expiresAt) > new Date()
       }),
-      verifyProSubscription: async (email: string) => {
+      verifyProSubscription: async (email: string, password?: string) => {
         const cleanEmail = email.trim().toLowerCase();
         if (!cleanEmail || !cleanEmail.includes('@')) {
           return { success: false, message: 'Por favor, digite um e-mail válido.' };
@@ -185,33 +185,33 @@ export const usePricingStore = create<AppState>()(
             return { success: false, message: 'Serviço de validação indisponível no momento.' };
           }
 
-          const { data, error } = await supabase.rpc('check_pro_subscription', {
-            lookup_email: cleanEmail
+          const { data, error } = await supabase.rpc('user_authenticate', {
+            p_email: cleanEmail,
+            p_password: password?.trim() || null
           });
 
           if (error) {
             console.error('Erro ao verificar assinatura:', error);
-            return { success: false, message: 'Erro ao consultar status da assinatura no banco.' };
+            return { success: false, message: 'Erro ao autenticar no servidor.' };
           }
 
-          const subscription = Array.isArray(data) ? data[0] : data;
-
-          if (subscription && subscription.is_active) {
+          if (data && data.success) {
             set({
               isProUser: true,
               proEmail: cleanEmail,
-              proCustomerName: subscription.customer_name || null,
-              proExpiresAt: subscription.expires_at || null,
+              proCustomerName: data.customer_name || null,
+              proExpiresAt: data.expires_at || null,
             });
             return { 
               success: true, 
-              message: 'Assinatura PRO identificada com sucesso!',
-              customerName: subscription.customer_name 
+              message: 'Acesso PRO liberado com sucesso!',
+              customerName: data.customer_name 
             };
           } else {
             return { 
               success: false, 
-              message: 'Nenhuma assinatura PRO ativa encontrada para este e-mail. Se acabou de pagar via boleto, aguarde a compensação bancária.' 
+              code: data?.code,
+              message: data?.message || 'Nenhuma assinatura PRO ativa encontrada para este e-mail.' 
             };
           }
         } catch (err: any) {

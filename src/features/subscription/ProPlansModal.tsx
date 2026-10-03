@@ -33,20 +33,22 @@ export function ProPlansModal({ isOpen, onClose }: ProPlansModalProps) {
   if (!isOpen) return null;
 
   const handleCheckout = () => {
-    // Link oficial Asaas para recorrência mensal (R$ 29,90)
+    // Links oficiais Asaas para assinaturas
     const ASAAS_MONTHLY_DEFAULT = 'https://www.asaas.com/000/c/y5ayqjf3pzccrqga';
-    const envMonthly = (import.meta as any).env?.VITE_CHECKOUT_URL_MONTHLY || ASAAS_MONTHLY_DEFAULT;
-    const envAnnual = (import.meta as any).env?.VITE_CHECKOUT_URL_ANNUAL;
+    const ASAAS_ANNUAL_DEFAULT = 'https://www.asaas.com/000/c/n3z4du1cvj9nkwea';
 
-    const targetUrl = billingCycle === 'annual' ? (envAnnual || envMonthly) : envMonthly;
+    const envMonthly = (import.meta as any).env?.VITE_CHECKOUT_URL_MONTHLY || ASAAS_MONTHLY_DEFAULT;
+    const envAnnual = (import.meta as any).env?.VITE_CHECKOUT_URL_ANNUAL || ASAAS_ANNUAL_DEFAULT;
+
+    const targetUrl = billingCycle === 'annual' ? envAnnual : envMonthly;
 
     if (targetUrl) {
       window.open(targetUrl, '_blank');
     } else {
       const msg = encodeURIComponent(
-        `Olá! Quero assinar o QuantoVende PRO no plano ${billingCycle === 'annual' ? 'Anual (R$ 19,90/mês)' : 'Mensal (R$ 29,90/mês)'}. Como faço para ativar?`
+        `Olá! Quero assinar o QuantoVende PRO no plano ${billingCycle === 'annual' ? 'Anual (12x R$ 19,90)' : 'Mensal (R$ 29,90/mês)'}. Como faço para ativar?`
       );
-      window.open(`https://wa.me/5511999999999?text=${msg}`, '_blank');
+      window.open(`https://wa.me/5521992563548?text=${msg}`, '_blank');
     }
   };
 

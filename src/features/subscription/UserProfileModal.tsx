@@ -12,14 +12,15 @@ import {
   LogOut, 
   Store, 
   Check, 
-  ArrowRight,
-  ShieldCheck,
-  Crown,
-  KeyRound,
-  Eye,
-  EyeOff,
-  HelpCircle,
-  MessageCircle
+  ArrowRight, 
+  ArrowLeft,
+  ShieldCheck, 
+  Crown, 
+  KeyRound, 
+  Eye, 
+  EyeOff, 
+  MessageCircle,
+  Lock
 } from 'lucide-react';
 
 interface UserProfileModalProps {
@@ -31,6 +32,8 @@ interface UserProfileModalProps {
 export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileModalProps) {
   const store = usePricingStore();
   const [emailInput, setEmailInput] = useState(store.proEmail || '');
+  const [loginPasswordInput, setLoginPasswordInput] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -38,7 +41,7 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
   const [storeNameInput, setStoreNameInput] = useState(store.proStoreName || '');
   const [storeSavedFeedback, setStoreSavedFeedback] = useState(false);
 
-  // User Password States
+  // User Password States (Inside Logged-in Profile)
   const [isChangingUserPwd, setIsChangingUserPwd] = useState(false);
   const [userCurrPwd, setUserCurrPwd] = useState('');
   const [userNewPwd, setUserNewPwd] = useState('');
@@ -47,8 +50,19 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
   const [userPwdFeedback, setUserPwdFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isSavingUserPwd, setIsSavingUserPwd] = useState(false);
 
-  // Forgot password / Help state
-  const [showForgotHelp, setShowForgotHelp] = useState(false);
+  // Recovery Mode State (When user clicks "Esqueceu a senha?")
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [isSendingRecovery, setIsSendingRecovery] = useState(false);
+  const [recoverySent, setRecoverySent] = useState(false);
+  const [recoveryFeedback, setRecoveryFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Token Reset Form
+  const [recoveryToken, setRecoveryToken] = useState('');
+  const [recoveryNewPwd, setRecoveryNewPwd] = useState('');
+  const [showRecoveryNewPwd, setShowRecoveryNewPwd] = useState(false);
+  const [isResettingWithToken, setIsResettingWithToken] = useState(false);
+
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -59,7 +73,7 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
     setIsVerifying(true);
     setFeedback(null);
 
-    const result = await store.verifyProSubscription(emailInput);
+    const result = await store.verifyProSubscription(emailInput, loginPasswordInput);
     setIsVerifying(false);
 
     if (result.success) {
@@ -91,7 +105,9 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
           redirectTo: window.location.origin
         }
       });
-      if (error) throw error;
+      if (error) {
+        throw new Error('O login com Google precisa ser ativado no painel do Supabase com as credenciais do Google Cloud.');
+      }
     } catch (err: any) {
       setFeedback({
         type: 'error',
@@ -99,6 +115,95 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
       });
     } finally {
       setIsGoogleLoading(false);
+    }
+  };
+
+  const handleRequestRecovery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const emailToRecover = (recoveryEmail || emailInput).trim().toLowerCase();
+    if (!emailToRecover || !emailToRecover.includes('@')) {
+      setRecoveryFeedback({ type: 'error', message: 'Digite um e-mail válido.' });
+      return;
+    }
+
+    setIsSendingRecovery(true);
+    setRecoveryFeedback(null);
+
+    try {
+      if (!supabase) throw new Error('Serviço indisponível.');
+
+      // 1. Tenta enviar pelo Supabase Auth oficial
+      try {
+        await supabase.auth.resetPasswordForEmail(emailToRecover, {
+          redirectTo: window.location.origin
+        });
+      } catch (authErr) {
+        console.warn('Supabase Auth reset aviso:', authErr);
+      }
+
+      // 2. Dispara a rotina de recuperação via RPC
+      const { data, error } = await supabase.rpc('user_request_password_reset', {
+        p_email: emailToRecover
+      });
+
+      if (error) throw error;
+
+      if (data && !data.success) {
+        setRecoveryFeedback({ type: 'error', message: data.message });
+      } else {
+        setRecoverySent(true);
+        setRecoveryFeedback({ 
+          type: 'success', 
+          message: 'Solicitação de recuperação gerada! Se tiver o código de 6 dígitos recebido, digite-o abaixo junto com sua nova senha.' 
+        });
+      }
+    } catch (err: any) {
+      setRecoveryFeedback({ type: 'error', message: err.message || 'Falha ao solicitar recuperação.' });
+    } finally {
+      setIsSendingRecovery(false);
+    }
+  };
+
+  const handleResetPasswordWithToken = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const emailToRecover = (recoveryEmail || emailInput).trim().toLowerCase();
+    if (!recoveryToken || !recoveryNewPwd) return;
+
+    if (recoveryNewPwd.length < 4) {
+      setRecoveryFeedback({ type: 'error', message: 'A nova senha deve ter no mínimo 4 caracteres.' });
+      return;
+    }
+
+    setIsResettingWithToken(true);
+    setRecoveryFeedback(null);
+
+    try {
+      if (!supabase) throw new Error('Serviço indisponível.');
+      const { data, error } = await supabase.rpc('user_reset_password_with_token', {
+        p_email: emailToRecover,
+        p_token: recoveryToken.trim(),
+        p_new_password: recoveryNewPwd.trim()
+      });
+
+      if (error) throw error;
+
+      if (data && !data.success) {
+        setRecoveryFeedback({ type: 'error', message: data.message });
+      } else {
+        setRecoveryFeedback({ type: 'success', message: data.message || 'Senha redefinida com sucesso!' });
+        setTimeout(() => {
+          setIsRecoveryMode(false);
+          setRecoverySent(false);
+          setRecoveryToken('');
+          setRecoveryNewPwd('');
+          setLoginPasswordInput('');
+          setRecoveryFeedback(null);
+        }, 2000);
+      }
+    } catch (err: any) {
+      setRecoveryFeedback({ type: 'error', message: err.message || 'Erro ao redefinir senha.' });
+    } finally {
+      setIsResettingWithToken(false);
     }
   };
 
@@ -167,7 +272,13 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
             </div>
             <div>
               <h3 className="font-extrabold text-base tracking-tight flex items-center gap-2">
-                <span>{store.isProUser ? 'Minha Conta' : 'Entrar no QuantoVende'}</span>
+                <span>
+                  {store.isProUser 
+                    ? 'Minha Conta' 
+                    : isRecoveryMode 
+                    ? 'Recuperar Acesso' 
+                    : 'Entrar no QuantoVende'}
+                </span>
                 {store.isProUser && (
                   <span className="text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 px-2 py-0.5 rounded-full">
                     PRO
@@ -175,7 +286,11 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
                 )}
               </h3>
               <p className="text-[11px] text-white/60">
-                {store.isProUser ? 'Gerencie seu plano e segurança' : 'Acesse com seu e-mail cadastrado'}
+                {store.isProUser 
+                  ? 'Gerencie seu plano e segurança' 
+                  : isRecoveryMode 
+                  ? 'Redefina sua senha ou recupere sua assinatura' 
+                  : 'Acesse com seu e-mail e senha cadastrados'}
               </p>
             </div>
           </div>
@@ -284,14 +399,15 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
                           value={userCurrPwd}
                           onChange={(e) => setUserCurrPwd(e.target.value)}
                           placeholder="Digite sua senha atual"
-                          className="w-full text-xs pl-3 pr-9 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="w-full text-xs pl-3.5 pr-10 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                         <button
                           type="button"
                           onClick={() => setShowUserCurrPwd(!showUserCurrPwd)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-foreground p-0.5"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+                          title={showUserCurrPwd ? 'Ocultar' : 'Visualizar'}
                         >
-                          {showUserCurrPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          {showUserCurrPwd ? <EyeOff className="w-4 h-4 stroke-[1.5]" /> : <Eye className="w-4 h-4 stroke-[1.5]" />}
                         </button>
                       </div>
                     </div>
@@ -305,14 +421,15 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
                           value={userNewPwd}
                           onChange={(e) => setUserNewPwd(e.target.value)}
                           placeholder="Mínimo 4 caracteres"
-                          className="w-full text-xs pl-3 pr-9 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          className="w-full text-xs pl-3.5 pr-10 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                         <button
                           type="button"
                           onClick={() => setShowUserNewPwd(!showUserNewPwd)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/50 hover:text-foreground p-0.5"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+                          title={showUserNewPwd ? 'Ocultar' : 'Visualizar'}
                         >
-                          {showUserNewPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          {showUserNewPwd ? <EyeOff className="w-4 h-4 stroke-[1.5]" /> : <Eye className="w-4 h-4 stroke-[1.5]" />}
                         </button>
                       </div>
                     </div>
@@ -320,7 +437,7 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
                     <button
                       type="submit"
                       disabled={isSavingUserPwd || !userNewPwd}
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold py-2 rounded-xl transition-all shadow-xs"
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold py-2.5 rounded-xl transition-all shadow-xs"
                     >
                       {isSavingUserPwd ? 'Salvando...' : 'Salvar Nova Senha'}
                     </button>
@@ -358,6 +475,147 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
                 </button>
               </div>
             </div>
+          ) : isRecoveryMode ? (
+            /* Password Recovery Screen */
+            <div className="space-y-4 animate-in fade-in duration-150">
+              <div className="space-y-1">
+                <h4 className="font-bold text-sm text-foreground">Recuperação Automática de Senha</h4>
+                <p className="text-xs text-foreground/60 leading-relaxed">
+                  Informe o e-mail cadastrado na sua assinatura para gerarmos a recuperação de acesso.
+                </p>
+              </div>
+
+              {recoveryFeedback && (
+                <div className={`text-xs p-3 rounded-xl flex items-start gap-2.5 ${
+                  recoveryFeedback.type === 'success' 
+                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20' 
+                    : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
+                }`}>
+                  {recoveryFeedback.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+                  )}
+                  <span className="leading-relaxed">{recoveryFeedback.message}</span>
+                </div>
+              )}
+
+              {!recoverySent ? (
+                <form onSubmit={handleRequestRecovery} className="space-y-3.5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-primary" />
+                      <span>E-mail da assinatura</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={recoveryEmail || emailInput}
+                      onChange={(e) => setRecoveryEmail(e.target.value)}
+                      placeholder="seuemail@exemplo.com"
+                      className="w-full bg-background text-foreground text-sm px-3.5 py-2.5 rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSendingRecovery}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold py-2.5 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    {isSendingRecovery ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Enviando solicitação...</span>
+                      </>
+                    ) : (
+                      <span>Enviar Link / Código de Recuperação</span>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                /* Step 2: Enter token & new password */
+                <form onSubmit={handleResetPasswordWithToken} className="space-y-3 pt-2 border-t border-border">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-foreground">Código de Recuperação (6 dígitos)</label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={recoveryToken}
+                      onChange={(e) => setRecoveryToken(e.target.value)}
+                      placeholder="Ex: 123456"
+                      className="w-full bg-background text-foreground text-center font-mono text-base tracking-widest py-2 rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-foreground">Digite a Nova Senha</label>
+                    <div className="relative">
+                      <input
+                        type={showRecoveryNewPwd ? 'text' : 'password'}
+                        required
+                        value={recoveryNewPwd}
+                        onChange={(e) => setRecoveryNewPwd(e.target.value)}
+                        placeholder="Mínimo 4 caracteres"
+                        className="w-full text-xs pl-3.5 pr-10 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRecoveryNewPwd(!showRecoveryNewPwd)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1"
+                        title={showRecoveryNewPwd ? 'Ocultar' : 'Visualizar'}
+                      >
+                        {showRecoveryNewPwd ? <EyeOff className="w-4 h-4 stroke-[1.5]" /> : <Eye className="w-4 h-4 stroke-[1.5]" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isResettingWithToken || !recoveryToken || !recoveryNewPwd}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    {isResettingWithToken ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Redefinindo senha...</span>
+                      </>
+                    ) : (
+                      <span>Confirmar e Salvar Nova Senha</span>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* Direct WhatsApp help option */}
+              <div className="p-3 rounded-2xl bg-muted/40 border border-border text-xs space-y-1.5 text-center">
+                <span className="text-[11px] text-foreground/60 block">Precisa de suporte imediato ou alteração de e-mail?</span>
+                <a
+                  href="https://wa.me/5521992563548?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20para%20recuperar%20meu%20acesso%20no%20QuantoVende."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold hover:underline text-xs"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>Falar com Atendimento no WhatsApp</span>
+                </a>
+              </div>
+
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRecoveryMode(false);
+                    setRecoverySent(false);
+                    setRecoveryFeedback(null);
+                  }}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-foreground/60 hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Voltar para o Login</span>
+                </button>
+              </div>
+            </div>
           ) : (
             /* Logged Out - Login Form */
             <div className="space-y-4">
@@ -377,19 +635,63 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
                   />
                 </div>
 
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-primary" />
+                      <span>Senha de Acesso</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRecoveryMode(true);
+                        setRecoveryEmail(emailInput);
+                        setRecoveryFeedback(null);
+                      }}
+                      className="text-[11px] font-semibold text-primary hover:underline"
+                    >
+                      Esqueceu a senha?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showLoginPassword ? 'text' : 'password'}
+                      value={loginPasswordInput}
+                      onChange={(e) => setLoginPasswordInput(e.target.value)}
+                      placeholder={showLoginPassword ? 'Digite sua senha' : '••••••••'}
+                      className="w-full bg-background text-foreground text-sm pl-3.5 pr-10 py-2.5 rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 font-medium"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground p-1 transition-colors"
+                      title={showLoginPassword ? 'Ocultar senha' : 'Ver senha digitada'}
+                    >
+                      {showLoginPassword ? (
+                        <EyeOff className="w-4 h-4 stroke-[1.5]" />
+                      ) : (
+                        <Eye className="w-4 h-4 stroke-[1.5]" />
+                      )}
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-foreground/50 block">
+                    Se for seu primeiro acesso após assinar, crie sua senha digitando-a acima.
+                  </span>
+                </div>
+
                 <button
                   type="submit"
                   disabled={isVerifying || !emailInput}
-                  className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-bold py-2.5 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                  className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground text-sm font-bold py-2.5 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isVerifying ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Validando assinatura...</span>
+                      <span>Validando acesso...</span>
                     </>
                   ) : (
                     <>
-                      <span>Entrar e Liberar Acesso PRO</span>
+                      <span>Entrar no QuantoVende PRO</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -418,51 +720,19 @@ export function UserProfileModal({ isOpen, onClose, onOpenPlans }: UserProfileMo
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                 </svg>
-                <span>Continuar com o Google</span>
+                <span>{isGoogleLoading ? 'Conectando...' : 'Continuar com o Google'}</span>
               </button>
 
-              {/* Forgot password / Access Help Link */}
-              <div className="text-center pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowForgotHelp(!showForgotHelp)}
-                  className="text-[11px] text-foreground/60 hover:text-foreground inline-flex items-center gap-1 transition-colors"
-                >
-                  <HelpCircle className="w-3 h-3" />
-                  <span>Esqueceu seu acesso ou precisa de ajuda?</span>
-                </button>
-
-                {showForgotHelp && (
-                  <div className="mt-2.5 p-3 rounded-xl bg-muted/50 border border-border text-left text-xs space-y-2 animate-in fade-in">
-                    <p className="text-foreground/80 leading-relaxed text-[11px]">
-                      Sua assinatura PRO é vinculada ao <strong>e-mail da compra no Asaas ou Pix</strong>. Basta digitar esse e-mail no campo acima para ativar.
-                    </p>
-                    <p className="text-foreground/80 leading-relaxed text-[11px]">
-                      Se tiver qualquer dúvida ou problema com seu acesso, nosso atendimento está pronto no WhatsApp:
-                    </p>
-                    <a
-                      href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20com%20meu%20acesso%20no%20QuantoVende."
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold hover:underline text-[11px]"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      <span>Falar com Suporte no WhatsApp</span>
-                    </a>
-                  </div>
-                )}
-              </div>
-
               {feedback && (
-                <div className={`text-xs p-3 rounded-xl flex items-start gap-2.5 ${
+                <div className={`text-xs p-3.5 rounded-xl flex items-start gap-2.5 ${
                   feedback.type === 'success' 
                     ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20' 
-                    : 'bg-amber-500/10 text-amber-800 dark:text-amber-200 border border-amber-500/20'
+                    : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
                 }`}>
                   {feedback.type === 'success' ? (
                     <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
                   ) : (
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
                   )}
                   <span className="leading-relaxed">{feedback.message}</span>
                 </div>
